@@ -1,5 +1,5 @@
 import unittest
-import blockchain
+import blockchain_model
 
 class TestBlockChain(unittest.TestCase):
 
