@@ -2,11 +2,13 @@
 blockchain = []
 open_transactions = []
 owner = 'Kayo'
-run_crypto_chain = True
 
 
 def get_last_blockchain_value():
     """Returns the last value of the current blockchain. """
+
+    global  blockchain
+
     if len(blockchain) < 1:
         print("The blockchain is empty.")
         return None
@@ -14,6 +16,9 @@ def get_last_blockchain_value():
 
 
 def add_transaction(tx_recipient, tx_sender=owner, tx_amount=1.0):
+
+    global open_transactions
+
     """Append a new value as well as the last blockchain value to the blockchain.
 
     Arguments:
@@ -28,7 +33,9 @@ def add_transaction(tx_recipient, tx_sender=owner, tx_amount=1.0):
 
 
 def mine_block():
-    pass
+    global blockchain, open_transactions
+    last_block = blockchain[-1]
+    block = {'previous_hash': 'XYZ', 'index': len(blockchain), 'transactions': open_transactions}
 
 
 def get_transaction():
@@ -38,6 +45,9 @@ def get_transaction():
 
 
 def output_blockchain():
+
+    global blockchain
+
     if len(blockchain) > 0:
         for block in blockchain:
             print('Outputting block')
@@ -58,29 +68,3 @@ def verify_chain_is_safe(the_chain, counter=0, is_safe=True):
     else:
         return is_safe
 
-
-while run_crypto_chain:
-    print('Please, choose a option: ')
-    print('1: Add a new transaction value')
-    print('2: Output the blockchain blocks')
-    print('q: Quit')
-    user_choice = input('Your choice: ')
-    if user_choice == '1':
-        transaction = get_transaction()
-        recipient, amount = transaction
-        add_transaction(recipient, owner, tx_amount=amount)
-        print(open_transactions)
-    elif user_choice == '2':
-        output_blockchain()
-    elif user_choice == 'q':
-        run_crypto_chain = False
-    elif user_choice == 'h':
-        if len(blockchain) > 2:
-            blockchain[2] = [2]
-    else:
-        print('Invalid option, select a value from the list.')
-        continue
-    if not verify_chain_is_safe(blockchain):
-        print('The chain is invalid.')
-        break
-print('Done!')
