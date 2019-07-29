@@ -1,6 +1,5 @@
 from blockchain_model import BlockchainModel
 
-run_crypto_chain = True
 new_blockchain = BlockchainModel('Kayo')
 
 print('Please, choose a option: ')
@@ -10,7 +9,13 @@ print('3: Output the blockchain blocks')
 print('4: Output the participants')
 print('5: Output your balance')
 print('q: Quit')
+
+run_crypto_chain = True
+
 while run_crypto_chain:
+    if not new_blockchain.verify_chain_is_safe():
+        print('The chain is invalid.')
+        break
     user_choice = input('Your choice: ')
     if user_choice == '1':
         tx_data = new_blockchain.new_transaction()
@@ -29,7 +34,7 @@ while run_crypto_chain:
     elif user_choice == '5':
         print(f'Your balance is: {new_blockchain.get_balance():^8.2f}')
     elif user_choice == 'q':
-        run_crypto_chain = False
+        run_crypto_chain = not new_blockchain.end_session()
     elif user_choice == 'h':
         if len(new_blockchain.blockchain) > 1:
             new_blockchain.blockchain[len(new_blockchain.blockchain) - 2] = \
@@ -38,9 +43,7 @@ while run_crypto_chain:
     else:
         print('Invalid option, select a value from the list.')
         continue
-    if not new_blockchain.verify_chain_is_safe():
-        print('The chain is invalid.')
-        break
     print('Choose another operation.')
     print('Or press q to leave.')
+
 print('Program closed!')
