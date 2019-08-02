@@ -1,16 +1,19 @@
 import hashlib as hl
 import functools as ft
 from collections import OrderedDict as Od
+from block import Block
 import json
+
+
 # import pickle
 
 
 class BlockchainModel:
 
     def __init__(self, owner=None):
-        self.__blockchain = []
+        self.__chain = []
         self.__open_transactions = []
-        self.owner = owner
+        self.__owner = owner
         self.participants = {owner}
 
         if self.load_data():
@@ -31,7 +34,7 @@ class BlockchainModel:
 
     @property
     def blockchain(self):
-        return self.__blockchain
+        return self.__chain
 
     @property
     def open_transactions(self):
@@ -44,19 +47,18 @@ class BlockchainModel:
         return tx_recipient, tx_amount
 
     @staticmethod
-    def _hash_block(block):
+    def _hash_block(block=None):
         """Hashes a block and returns a string representation of it.
 
         :param block: The block to be hashed
         :return: Hashed string
         """
-        hashed_block = (str(block['transactions']) +
-                        str(block['previous_hash']) +
-                        str(block['proof'])).encode()
 
-        hashed_block = hl.sha3_256(hashed_block).hexdigest()
-
-        return hashed_block
+        if block is not None:
+            the_block_hash = f'{block.__dict__.copy()}'
+            return hl.sha3_256(json.dumps(the_block_hash).encode()).hexdigest()
+        else:
+            return None
 
     @staticmethod
     def _valid_proof(transactions, last_hash, proof):
@@ -69,19 +71,17 @@ class BlockchainModel:
         hashed_block = self._hash_block(last_block)
         start_transaction = Od([('sender', 'MINING'), ('recipient', self.owner), ('amount', 100)])
         self.__open_transactions.append(start_transaction)
-        start_transaction = Od([('sender', 'MINING'), ('recipient', self.owner), ('amount', 0)])
-        self.__open_transactions.append(start_transaction)
         proof = self.proof_of_work(last_hash=hashed_block)
-        block = {'previous_hash': hashed_block, 'index': len(self.__blockchain),
-                 'transactions': self.__open_transactions, 'proof': proof}
-        self.__blockchain.append(block)
+        start_block = Block(previous_hash=hashed_block, index=len(self.blockchain), transactions=self.open_transactions,
+                            proof=proof)
+        self.__chain.append(start_block)
         self.__open_transactions = []
 
     def proof_of_work(self, transactions=None, last_hash=None):
-        if not last_hash:
+        if last_hash is None:
             last_block = self.blockchain[-1]
             last_hash = self._hash_block(last_block)
-        if not transactions:
+        if transactions is None:
             transactions = self.open_transactions
         proof = 0
         while not self._valid_proof(transactions, last_hash, proof):
@@ -112,6 +112,12 @@ class BlockchainModel:
         return False
 
     def verify_transaction(self, transaction):
+        """
+        Method to verify if the transaction is possible.
+
+        :param transaction:
+        :return: True for a possible transaction, False for the lack of funds
+        """
         sender_balance = self.get_balance(transaction['sender'])
         return sender_balance >= transaction['amount']
 
@@ -131,21 +137,21 @@ class BlockchainModel:
             temp_transaction = self.open_transactions[:]
             temp_transaction.append(reward_transaction)
             proof = self.proof_of_work(temp_transaction, hashed_block)
-            block = {'previous_hash': hashed_block, 'index': len(self.__blockchain),
-                     'transactions': temp_transaction, 'proof': proof}
+            block_to_mine = Block(previous_hash=hashed_block, index=len(self.blockchain), transactions=temp_transaction,
+                                  proof=proof)
             # Append the new block to the blockchain and resets the open transactions
-            self.__blockchain.append(block)
-            self.__open_transactions = []
-            return True
+            self.blockchain.append(block_to_mine)
+            self.open_transactions.clear()
+            return self.save_data()
         else:
             print('There is no blocks to mine.')
             return False
 
     def output_blockchain(self):
 
-        for block in self.__blockchain:
+        for block in self.blockchain:
             print('Outputting block')
-            print(block)
+            print(block.__dict__)
 
     def verify_chain_is_safe(self):
         """
@@ -154,24 +160,23 @@ class BlockchainModel:
         for index, block in enumerate(self.blockchain):
             if index == 0:
                 continue
-            if not block['previous_hash'] == self._hash_block(self.blockchain[index - 1]):
+            if not block.previous_hash == self._hash_block(self.blockchain[index - 1]):
                 return False
-            if not self._valid_proof(block['transactions'], block['previous_hash'], block['proof']):
+            if not self._valid_proof(block.transactions, block.previous_hash, block.proof):
                 print('Proof of work is invalid.')
                 return False
         return True
 
-    # noinspection PyTypeChecker
     def get_balance(self, participant=None):
         if not participant:
             participant = self.owner
-        tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant] for block
+        tx_sender = [[tx['amount'] for tx in block.transactions if tx['sender'] == participant] for block
                      in self.blockchain]
         open_tx_sender = [tx['amount'] for tx in self.open_transactions if tx['sender'] == participant]
         tx_sender.append(open_tx_sender)
         amount_sent = ft.reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt) if len(tx_amt) > 0 else tx_sum,
                                 tx_sender, 0)
-        tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block
+        tx_recipient = [[tx['amount'] for tx in block.transactions if tx['recipient'] == participant] for block
                         in self.blockchain]
         amount_received = ft.reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt) if len(tx_amt) > 0 else tx_sum,
                                     tx_recipient, 0)
@@ -183,10 +188,10 @@ class BlockchainModel:
         :param filename:
         :return if the operation was successful:
         """
-
+        dict_blockchain = [block.__dict__ for block in self.blockchain]
         try:
             with open(filename, mode='w') as blockchain_file:
-                blockchain_file.write(json.dumps(self.blockchain))
+                blockchain_file.write(json.dumps(dict_blockchain))
                 blockchain_file.write('\n')
                 blockchain_file.write(json.dumps(self.open_transactions))
 
@@ -204,22 +209,21 @@ class BlockchainModel:
         :param filename:
         :return if the operation was successful:
         """
-        blockchain_info = ''
-
         try:
             with open(filename, mode='r') as blockchain_file:
 
                 blockchain_info = blockchain_file.readlines()
                 loaded_chain = json.loads(blockchain_info[0][:-1])
-                self.__blockchain = [{'previous_hash': block['previous_hash'],
-                                      'index': block['index'],
-                                      'proof': block['proof'],
-                                      'transactions': [Od(
+                self.__chain = [Block(previous_hash=loaded_block['previous_hash'],
+                                      index=loaded_block['index'],
+                                      proof=loaded_block['proof'],
+                                      transactions=[Od(
                                           [('sender', tx['sender']),
                                            ('recipient', tx['recipient']),
                                            ('amount', tx['amount'])])
-                                          for tx in block['transactions'] if block['transactions']]
-                                      } for block in loaded_chain]
+                                          for tx in loaded_block['transactions'] if loaded_block['transactions']],
+                                      time_=loaded_block['timestamp']
+                                      ) for loaded_block in loaded_chain]
 
                 loaded_transactions = json.loads((blockchain_info[1]))
                 self.__open_transactions = [Od(
@@ -231,8 +235,7 @@ class BlockchainModel:
             return True
 
         except (IOError, IndexError):
-            genesis_block = {'previous_hash': '', 'index': 0, 'transactions': [], 'proof': 0}
-            self.__blockchain = [genesis_block]
+            self.blockchain.append(Block(previous_hash='', index=0, transactions=[], proof=0, time_=0))
             self.start_money()
             print('File not found, creating new one.')
             return True if self.save_data() else False
