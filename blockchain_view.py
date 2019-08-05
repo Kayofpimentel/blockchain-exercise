@@ -1,5 +1,6 @@
 from blockchain_model import BlockchainModel
 from block import Block
+from transaction import Transaction
 
 new_blockchain = BlockchainModel('Kayo')
 
@@ -7,8 +8,7 @@ print('Please, choose a option: ')
 print('1: Add a new transaction value')
 print('2: Mine a new block')
 print('3: Output the blockchain blocks')
-print('4: Output the participants')
-print('5: Output your balance')
+print('4: Output your balance')
 print('q: Quit')
 
 run_crypto_chain = True
@@ -25,9 +25,11 @@ while run_crypto_chain:
     user_choice = input('Your choice: ')
 
     if user_choice == '1':
-        tx_data = new_blockchain.new_transaction()
-        tx_recipient, tx_amount = tx_data
-        if new_blockchain.add_transaction(tx_recipient, None, tx_amount):
+        tx_recipient = input('Enter the recipient of the transaction: \n')
+        tx_amount = float(input("Please insert your transaction amount: \n"))
+        new_transaction = Transaction(tx_sender=new_blockchain.owner, tx_recipient=tx_recipient,
+                                      tx_amount=tx_amount)
+        if new_blockchain.add_transaction(new_transaction):
             print('Added transaction.')
         else:
             print('Transaction failed.')
@@ -39,8 +41,6 @@ while run_crypto_chain:
     elif user_choice == '3':
         new_blockchain.output_blockchain()
     elif user_choice == '4':
-        print(new_blockchain.participants)
-    elif user_choice == '5':
         print(f'Your balance is: {new_blockchain.get_balance():^8.2f}')
     elif user_choice == 'q':
         if new_blockchain.end_session():
