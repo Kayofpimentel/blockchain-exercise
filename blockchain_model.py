@@ -11,10 +11,11 @@ from datetime import datetime as dt
 
 class Blockchain:
 
-    def __init__(self, owner=None):
+    def __init__(self, user=None, hosting_node=None):
         self.__chain = []
         self.__open_transactions = []
-        self.__owner = owner if owner is not None else 'Kayo'
+        self.__node = hosting_node
+        self.__owner = user if user is not None else ''
 
         if self.load_data():
             print('Blockchain loaded.')
@@ -25,6 +26,10 @@ class Blockchain:
         self.MINING_REWARD = 10
 
     @property
+    def node(self):
+        return self.__node
+
+    @property
     def owner(self):
         return self.__owner
 
@@ -33,7 +38,7 @@ class Blockchain:
         self.__owner = value
 
     @property
-    def blockchain(self):
+    def chain(self):
         return self.__chain
 
     @property
@@ -41,19 +46,19 @@ class Blockchain:
         return self.__open_transactions
 
     def start_money(self):
-        last_block = self.blockchain[-1]
+        last_block = self.chain[-1]
         hashed_block = cu.hash_block(last_block)
         start_transaction = Tx(tx_recipient=self.owner, tx_amount=100)
         self.__open_transactions.append(start_transaction)
         proof = cu.calculate_proof(transactions=self.open_transactions, last_hash=hashed_block)
-        start_block = Block(previous_hash=hashed_block, index=len(self.blockchain),
+        start_block = Block(previous_hash=hashed_block, index=len(self.chain),
                             transactions=cp.deepcopy(self.open_transactions), proof=proof)
         self.__chain.append(start_block)
         self.__open_transactions.clear()
 
     def add_transaction(self, new_transaction):
         """
-        Append a new value as well as the last blockchain value to the blockchain.
+        Append a new value as well as the last chain value to the chain.
 
         Arguments:
             :param
@@ -66,12 +71,12 @@ class Blockchain:
 
     def mine_block(self):
         """
-        Method add a new block to the blockchain.
+        Method add a new block to the chain.
         :return:
         """
         if len(self.open_transactions) > 0:
             # Fetch the last block for hashing before mining the new block
-            last_block = self.blockchain[-1]
+            last_block = self.chain[-1]
             # Hash the last block
             hashed_block = cu.hash_block(last_block)
             # Add the reward transaction for the mining operation
@@ -80,10 +85,10 @@ class Blockchain:
             temp_transaction = cp.deepcopy(self.open_transactions)[:]
             temp_transaction.append(reward_transaction)
             proof = cu.calculate_proof(temp_transaction, hashed_block)
-            block_to_mine = Block(previous_hash=hashed_block, index=len(self.blockchain), transactions=temp_transaction,
+            block_to_mine = Block(previous_hash=hashed_block, index=len(self.chain), transactions=temp_transaction,
                                   proof=proof)
-            # Append the new block to the blockchain and resets the open transactions
-            self.blockchain.append(block_to_mine)
+            # Append the new block to the chain and resets the open transactions
+            self.chain.append(block_to_mine)
             self.open_transactions.clear()
             return self.save_data()
         else:
@@ -92,11 +97,11 @@ class Blockchain:
 
     def output_blockchain(self):
 
-        for index, block in enumerate(self.blockchain):
+        for index, block in enumerate(self.chain):
             print('-' * 20)
             print(f'Outputting block {index}:')
             print(block)
-            if index == (len(self.blockchain) - 1):
+            if index == (len(self.chain) - 1):
                 print('-' * 20)
 
     def save_data(self, filename='./resources/blockchain_data.txt'):
@@ -105,7 +110,7 @@ class Blockchain:
         :param filename:
         :return if the operation was successful:
         """
-        dict_blockchain = cp.deepcopy(self.blockchain)
+        dict_blockchain = cp.deepcopy(self.chain)
         dict_blockchain = [Od([('previous_hash', block.previous_hash),
                                ('index', block.index),
                                ('proof', block.proof),
@@ -123,7 +128,7 @@ class Blockchain:
                 blockchain_file.write('\n')
                 blockchain_file.write(json.dumps(dict_transactions))
 
-                # data_to_save = {'chain': self.blockchain, 'ot': self.open_transactions}
+                # data_to_save = {'chain': self.chain, 'ot': self.open_transactions}
                 # with open(filename, mode='wb') as blockchain_file:
                 #     blockchain_file.write(pickle.dumps(data_to_save))
             return True
@@ -133,7 +138,7 @@ class Blockchain:
 
     def load_data(self, filename='./resources/blockchain_data.txt'):
         """
-        Method to load all the data from the blockchain when the program initiates.
+        Method to load all the data from the chain when the program initiates.
         :param filename:
         :return if the operation was successful:
         """
@@ -163,7 +168,7 @@ class Blockchain:
             return True
 
         except (IOError, IndexError):
-            self.blockchain.append(Block(previous_hash='', index=0, transactions=[], proof=0, time_=0))
+            self.chain.append(Block(previous_hash='', index=0, transactions=[], proof=0, time_=0))
             self.start_money()
             print('File not found, creating new one.')
             return True if self.save_data() else False

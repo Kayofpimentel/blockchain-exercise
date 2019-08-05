@@ -1,4 +1,5 @@
 import chain_utils as cu
+from uuid import uuid4
 from block import Block
 from blockchain_model import Blockchain
 from transaction import Transaction as Tx
@@ -6,8 +7,18 @@ from transaction import Transaction as Tx
 
 class Node:
 
-    def __init__(self, owner):
-        self.__blockchain = Blockchain(owner)
+    def __init__(self, logged_user):
+        self.__user = logged_user
+        self.__node_id = str(uuid4())
+        self.__blockchain = Blockchain(user=self.user, hosting_node=self.node_id)
+
+    @property
+    def user(self):
+        return self.__user
+
+    @property
+    def node_id(self):
+        return self.__node_id
 
     @property
     def blockchain(self):
@@ -16,7 +27,7 @@ class Node:
     def create_new_transaction(self):
         tx_recipient = input('Enter the recipient of the transaction: \n')
         tx_amount = float(input("Please insert your transaction amount: \n"))
-        new_transaction = Tx(tx_sender=self.blockchain.owner, tx_recipient=tx_recipient,
+        new_transaction = Tx(tx_sender=self.user, tx_recipient=tx_recipient,
                              tx_amount=tx_amount)
         return new_transaction
 
@@ -30,12 +41,12 @@ class Node:
         print('Please, choose a option: ')
         print('1: Add a new transaction value')
         print('2: Mine a new block')
-        print('3: Output the blockchain blocks')
+        print('3: Output the chain blocks')
         print('4: Output your balance')
         print('q: Quit')
 
         run_crypto_chain = True
-        if not cu.verify_chain_is_safe(self.blockchain.blockchain):
+        if not cu.verify_chain_is_safe(self.blockchain.chain):
             return False
         while run_crypto_chain:
 
@@ -50,7 +61,7 @@ class Node:
                 if self.blockchain.mine_block():
                     print(f'A new block was mined. {self.blockchain.MINING_REWARD} added to your balance.')
                 else:
-                    print('Could not mine, error with blockchain file.')
+                    print('Could not mine, error with chain file.')
             elif user_choice == '3':
                 self.blockchain.output_blockchain()
             elif user_choice == '4':
@@ -64,10 +75,10 @@ class Node:
             elif user_choice == 'h':
                 hacked_block = Block(previous_hash='', index=0, transactions=[{'sender': 'Chris', 'recipient': 'Max',
                                                                                'amount': 100.0}], proof=0)
-                self.blockchain.blockchain[len(self.blockchain.blockchain) - 2] = hacked_block
+                self.blockchain.chain[len(self.blockchain.chain) - 2] = hacked_block
             else:
                 print('Invalid option, select a value from the list.')
-            if not cu.verify_chain_is_safe(self.blockchain.blockchain):
+            if not cu.verify_chain_is_safe(self.blockchain.chain):
                 return False
             print('Choose another operation.')
             print('Or press q to leave.')

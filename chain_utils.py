@@ -18,7 +18,7 @@ def valid_proof(transactions, last_hash, proof):
 
 def calculate_proof(transactions=None, last_hash=None):
     """
-    Calculates the proof of work for the blockchain.
+    Calculates the proof of work for the chain.
 
     :param transactions:
     :param last_hash:
@@ -32,7 +32,7 @@ def calculate_proof(transactions=None, last_hash=None):
 
 def verify_chain_is_safe(blockchain):
     """
-     Verify the current blockchain integrity and return True if it's valid or False if it's not.
+     Verify the current chain integrity and return True if it's valid or False if it's not.
 
      :param blockchain:
     """
@@ -57,7 +57,7 @@ def get_balance(blockchain):
 
     # Calculating total amount that was sent to other participants.
     tx_sender = [tx.amount
-                 for block in blockchain.blockchain
+                 for block in blockchain.chain
                  for tx in block.transactions
                  if tx.sender == blockchain.owner]
     open_tx_sender = [tx.amount for tx in blockchain.open_transactions if tx.sender == blockchain.owner]
@@ -65,7 +65,7 @@ def get_balance(blockchain):
     amount_sent = ft.reduce(lambda tx_sum, tx_amt: tx_sum + tx_amt, tx_sender, 0)
     # Calculating total amount that was received from other participants.
     tx_recipient = [tx.amount
-                    for block in blockchain.blockchain
+                    for block in blockchain.chain
                     for tx in block.transactions
                     if tx.recipient == blockchain.owner]
     amount_received = ft.reduce(lambda tx_sum, tx_amt: tx_sum + tx_amt, tx_recipient, 0)
