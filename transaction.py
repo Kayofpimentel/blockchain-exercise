@@ -1,5 +1,5 @@
 import time as tm
-from datetime import datetime as Dt
+from datetime import datetime as dt
 
 
 class Transaction:
@@ -24,4 +24,4 @@ class Transaction:
 
     @property
     def date(self):
-        return Dt.fromtimestamp(self.__timestamp)
+        return dt.fromtimestamp(self.__timestamp)
