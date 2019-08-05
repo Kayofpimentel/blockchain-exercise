@@ -39,11 +39,11 @@ class Blockchain:
 
     @property
     def chain(self):
-        return self.__chain
+        return self.__chain[:]
 
     @property
     def open_transactions(self):
-        return self.__open_transactions
+        return self.__open_transactions[:]
 
     def start_money(self):
         last_block = self.chain[-1]
