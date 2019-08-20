@@ -1,8 +1,8 @@
 import json
-import chain_utils as cu
+from blockchain_util import chain_utils as cu
 import copy as cp
-from block import Block
-from transaction import Transaction as Tx
+from blockchain_core.block import Block
+from blockchain_core.transaction import Transaction as Tx
 from collections import OrderedDict as Od
 from datetime import datetime as dt
 
@@ -82,14 +82,14 @@ class Blockchain:
             # Add the reward transaction for the mining operation
             reward_transaction = Tx(tx_recipient=self.owner, tx_amount=self.MINING_REWARD)
             # Create te new block with all open transactions
-            temp_transaction = cp.deepcopy(self.open_transactions)[:]
+            temp_transaction = cp.deepcopy(self.open_transactions)
             temp_transaction.append(reward_transaction)
             proof = cu.calculate_proof(temp_transaction, hashed_block)
             block_to_mine = Block(previous_hash=hashed_block, index=len(self.chain), transactions=temp_transaction,
                                   proof=proof)
             # Append the new block to the chain and resets the open transactions
-            self.chain.append(block_to_mine)
-            self.open_transactions.clear()
+            self.__chain.append(block_to_mine)
+            self.__open_transactions.clear()
             return self.save_data()
         else:
             print('There are no transactions to mine a block.')
@@ -168,7 +168,7 @@ class Blockchain:
             return True
 
         except (IOError, IndexError):
-            self.chain.append(Block(previous_hash='', index=0, transactions=[], proof=0, time_=0))
+            self.__chain.append(Block(previous_hash='', index=0, transactions=[], proof=0, time_=0))
             self.start_money()
             print('File not found, creating new one.')
             return True if self.save_data() else False

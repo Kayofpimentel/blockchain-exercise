@@ -1,8 +1,13 @@
-import chain_utils as cu
+from blockchain_util import chain_utils as cu
 from uuid import uuid4
-from block import Block
-from blockchain_model import Blockchain
-from transaction import Transaction as Tx
+from blockchain_core.block import Block
+from blockchain_core.blockchain_model import Blockchain
+from blockchain_core.transaction import Transaction as Tx
+
+
+def start_new_node(user_name):
+    new_node = Node(user_name)
+    return new_node.start_operations()
 
 
 class Node:
@@ -83,3 +88,9 @@ class Node:
             print('Choose another operation.')
             print('Or press q to leave.')
         return True
+
+
+if __name__ == '__main__':
+    if not start_new_node(input('Insert user login: ')):
+        print('Program failed to start.')
+    print('Program finished.')

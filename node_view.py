@@ -1,8 +1,7 @@
-from node import Node
+import blockchain_core.node as node
 
-new_node = Node(input('Insert user login: '))
-if not new_node.start_operations():
-    print('The chain is invalid.')
-print('Program closed!')
-
+if __name__ == '__main__':
+    if not node.start_new_node(input('Insert user login: ')):
+        print('Program failed to start.')
+    print('Program finished.')
 
