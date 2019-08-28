@@ -34,6 +34,11 @@ class Blockchain:
         return self.__owner
 
     @owner.setter
+    def owner(self, new_user=None):
+        if new_user is not None:
+            self.__owner = new_user
+
+    @owner.setter
     def owner(self, value):
         self.__owner = value
 
@@ -48,6 +53,8 @@ class Blockchain:
     def start_money(self):
         last_block = self.chain[-1]
         hashed_block = cu.hash_block(last_block)
+        tx_start_amount = 100
+        start_signature = self.node.wallet.sign_transaction(amount=tx_start_amount, sender=self.owner)
         start_transaction = Tx(tx_recipient=self.owner, tx_amount=100)
         self.__open_transactions.append(start_transaction)
         proof = cu.calculate_proof(transactions=self.open_transactions, last_hash=hashed_block)
@@ -104,7 +111,7 @@ class Blockchain:
             if index == (len(self.chain) - 1):
                 print('-' * 20)
 
-    def save_data(self, filename='./resources/blockchain_data.txt'):
+    def save_data(self, filename='../resources/blockchain_data.txt'):
         """
         Method to save the data from recent transactions and mined blocks after the program is closed.
         :param filename:
@@ -136,14 +143,14 @@ class Blockchain:
         except IOError:
             return False
 
-    def load_data(self, filename='./resources/blockchain_data.txt'):
+    def load_data(self, file_name='../resources/blockchain_data.txt'):
         """
         Method to load all the data from the chain when the program initiates.
-        :param filename:
+        :param file_name:
         :return if the operation was successful:
         """
         try:
-            with open(filename, mode='r') as blockchain_file:
+            with open(file_name, mode='r') as blockchain_file:
 
                 blockchain_info = blockchain_file.readlines()
                 loaded_chain = json.loads(blockchain_info[0][:-1])
