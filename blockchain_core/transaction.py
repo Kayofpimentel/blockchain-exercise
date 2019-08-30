@@ -28,5 +28,5 @@ class Transaction:
         return self.__amount
 
     @property
-    def date(self):
-        return dt.fromtimestamp(self.__timestamp)
+    def timestamp(self):
+        return self.__timestamp

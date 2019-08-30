@@ -1,5 +1,5 @@
 from Crypto.Signature import PKCS1_v1_5 as CSign
-from Crypto.Hash import SHA256 as CHash
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 import Crypto.Random as CRandom
 import binascii
@@ -11,50 +11,48 @@ class Wallet:
         # Setting keys for operations in the node.
         self.__public_key = None
         self.__private_key = private_key
-        self.user = user_name if user_name is not None else 'Test'
+        self.__user = user_name if user_name is not None else 'Test'
         if self.__private_key is None:
             self.load_keys()
         else:
-            self.__public_key = self.generate_public_key(self.private_key)
-
-    @property
-    def private_key(self):
-        return self.__private_key
+            self.__public_key = self.generate_public_key(self.__private_key)
 
     @property
     def public_key(self):
         return self.__public_key
 
-    def change_user(self, new_user):
-        self.user = new_user
-
-    def load_keys(self):
-        file_name = f'../resources/{self.user}.txt'
+    def load_keys(self, user=None):
+        user = user if user is not None else self.__user
+        file_name = f'../resources/{user}.txt'
         try:
             print('Loading keys from user file.')
             with open(file_name, mode='r') as wallet_file:
                 keys = wallet_file.readlines()
                 self.__public_key = keys[0][:-1]
                 self.__private_key = keys[1]
+            self.__user = user
             return True
 
         except (IOError, IndexError):
             print('Could not load keys, creating new ones.')
-            if self.private_key is None:
+            if self.__private_key is None:
                 self.__private_key, self.__public_key = self.generate_keys()
             else:
-                self.__public_key = binascii.hexlify(self.private_key.publickey().exportKey(format='DER')).decode(
+                self.__public_key = binascii.hexlify(RSA.importKey(binascii.unhexlify(self.__private_key))
+                                                     .publickey().exportKey(format='DER')).decode(
                     'ascii')
             print('Saving new keys to user file.')
-            return self.save_keys()
+            return self.save_keys(user)
 
-    def save_keys(self):
-        file_name = f'../resources/{self.user}.txt'
+    def save_keys(self, user):
+        user = user if user is not None else self.__user
+        file_name = f'../resources/{user}.txt'
         try:
             with open(file_name, mode='w') as wallet_file:
                 wallet_file.write(self.public_key)
                 wallet_file.write('\n')
-                wallet_file.write(self.private_key)
+                wallet_file.write(self.__private_key)
+            self.__user = user
             return True
 
         except IOError:
@@ -77,7 +75,7 @@ class Wallet:
         self.__public_key = None
 
     def sign_transaction(self, sender, recipient, amount):
-        signer = CSign.new(RSA.importKey(binascii.unhexlify(self.private_key)))
-        tx_hash = CHash.new(f'{sender}{recipient}{amount}'.encode('uft8'))
+        signer = CSign.new(RSA.importKey(binascii.unhexlify(self.__private_key)))
+        tx_hash = SHA256.new(f'{sender}{recipient}{amount}'.encode('utf8'))
         user_signature = signer.sign(tx_hash)
         return binascii.hexlify(user_signature).decode('ascii')
