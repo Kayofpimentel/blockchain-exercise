@@ -1,5 +1,4 @@
 import json
-# import pickle
 import hashlib as hl
 import functools as ft
 from collections import OrderedDict as Od
@@ -8,8 +7,9 @@ import binascii
 
 from Crypto.Hash import SHA256
 
-from blockchain_core.block import Block
-from blockchain_core.transaction import Transaction as Tx
+from block import Block
+from wallet import Wallet
+from transaction import Transaction as Tx
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5 as CSign
 
@@ -107,6 +107,15 @@ def verify_transaction(transaction):
     return verifier.verify(tx_hash, binascii.unhexlify(transaction.signature))
 
 
+def create_new_transaction(tx_sender=None, tx_recipient=None, tx_amount=None, tx_signature=None):
+    if tx_recipient is not None:
+        new_transaction = Tx(tx_sender=tx_sender, tx_recipient=tx_recipient,
+                             tx_amount=tx_amount, tx_signature=tx_signature)
+        return new_transaction
+    else:
+        return None
+
+
 def hash_block(block=None):
     """Hashes a block and returns a string representation of it.
 
@@ -150,7 +159,7 @@ def save_blockchain(blockchain, file_path='../resources/blockchain_data.txt'):
                                  ('signature', tx.signature)])
                              for tx in block.transactions]),
                            ('timestamp', block.timestamp)]) for block in blockchain.chain]
-    dict_transactions = [tx.__dict__ for tx in blockchain.open_transactions]
+    dict_transactions = [tx.get_dict() for tx in blockchain.open_transactions]
     try:
         with open(file_path, mode='w') as blockchain_file:
             blockchain_file.write(json.dumps(dict_blockchain))
@@ -215,3 +224,9 @@ def load_blockchain(resources_path):
     #
     # self.__blockchain = blockchain_info['chain']
     # self.__open_transactions = blockchain_info['ot']
+
+
+def load_wallet(user_name=None, create_key=True):
+    user_name = user_name
+    user_wallet = Wallet(user_name, create_key)
+    return user_wallet

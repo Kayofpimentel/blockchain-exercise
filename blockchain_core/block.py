@@ -19,3 +19,6 @@ class Block:
                f'Transactions: {[tx.__dict__ for tx in self.transactions]} \n' \
                f'Last Hash: {self.previous_hash} \n' \
                f'End of block.'
+
+    def get_dict(self):
+        return self.__dict__.copy()

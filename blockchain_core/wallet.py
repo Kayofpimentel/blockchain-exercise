@@ -7,22 +7,20 @@ import binascii
 
 class Wallet:
 
-    def __init__(self, user_name=None, private_key=None):
+    def __init__(self, user_name=None, private_key=None, create_key=True):
         # Setting keys for operations in the node.
         self.__public_key = None
         self.__private_key = private_key
-        self.__user = user_name if user_name is not None else 'Test'
-        if self.__private_key is None:
-            self.load_keys()
-        else:
-            self.__public_key = self.generate_public_key(self.__private_key)
+        self.__user = user_name if user_name is not None else 'System0'
+        if self.__private_key is None and create_key:
+            self.load_keys(create_key)
 
     @property
     def public_key(self):
         return self.__public_key
 
-    def load_keys(self, user=None):
-        user = user if user is not None else self.__user
+    def load_keys(self, user, create_key=True):
+        user = user
         file_name = f'../resources/{user}.txt'
         try:
             print('Loading keys from user file.')
@@ -31,21 +29,29 @@ class Wallet:
                 self.__public_key = keys[0][:-1]
                 self.__private_key = keys[1]
             self.__user = user
-            return True
+            return 'Keys loaded.'
 
         except (IOError, IndexError):
-            print('Could not load keys, creating new ones.')
-            if self.__private_key is None:
-                self.__private_key, self.__public_key = self.generate_keys()
+            if create_key:
+                if self.create_keys(user):
+                    return 'Could not load keys, new keys created.'
+                else:
+                    return 'Error": could not save new keys.'
             else:
-                self.__public_key = binascii.hexlify(RSA.importKey(binascii.unhexlify(self.__private_key))
-                                                     .publickey().exportKey(format='DER')).decode(
-                    'ascii')
-            print('Saving new keys to user file.')
-            return self.save_keys(user)
+                return 'Error: could not load keys, user not found.'
+
+    def create_keys(self, user):
+        if self.__private_key is None:
+            self.__private_key, self.__public_key = self.generate_keys()
+        else:
+            self.__public_key = binascii.hexlify(RSA.importKey(binascii.unhexlify(self.__private_key))
+                                                 .publickey().exportKey(format='DER')).decode(
+                'ascii')
+        print('Saving new keys to user file.')
+        return self.save_keys(user)
 
     def save_keys(self, user):
-        user = user if user is not None else self.__user
+        user = user
         file_name = f'../resources/{user}.txt'
         try:
             with open(file_name, mode='w') as wallet_file:

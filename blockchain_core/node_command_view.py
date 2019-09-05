@@ -1,8 +1,8 @@
-from blockchain_core.blockchain import Blockchain
-from blockchain_util import chain_utils as cu
-from blockchain_core.block import Block
-from blockchain_core.transaction import Transaction as Tx
-from blockchain_wallet.wallet import Wallet
+from blockchain import Blockchain
+import chain_utils as cu
+from block import Block
+from transaction import Transaction as Tx
+
 import copy as cp
 
 
@@ -17,7 +17,7 @@ def start_new_node(user_name):
 class Node:
 
     def __init__(self, logged_user=None, resources_file_path=None):
-        self.__wallet = self.load_wallet(logged_user)
+        self.__wallet = cu.load_wallet(logged_user)
         self.resources_path = resources_file_path
         self.__blockchain = Blockchain()
         if resources_file_path is None:
@@ -39,12 +39,6 @@ class Node:
     @property
     def wallet(self):
         return self.__wallet
-
-    def create_new_transaction(self, tx_sender=None, tx_recipient=None, tx_amount=None):
-        tx_signature = self.wallet.sign_transaction(sender=tx_sender, recipient=tx_recipient, amount=tx_amount)
-        new_transaction = Tx(tx_sender=tx_sender, tx_recipient=tx_recipient,
-                             tx_amount=tx_amount, tx_signature=tx_signature)
-        return new_transaction
 
     @staticmethod
     def get_user_choice():
@@ -78,12 +72,12 @@ class Node:
             if user_choice == '1':
                 # Finding if the user is in the system and recovering his keys for the transaction
                 recipient_name = input('Enter the recipient of the transaction: \n')
-                recipient_wallet = Wallet(recipient_name)
+                recipient_wallet = cu.load_wallet(recipient_name, False)
                 tx_recipient = recipient_wallet.public_key
                 tx_amount = float(input("Please insert your transaction amount: \n"))
                 tx_sender = self.wallet.public_key
-                new_tx = self.create_new_transaction(tx_sender, tx_recipient, tx_amount)
-                if self.blockchain.add_transaction(new_tx):
+                new_tx = cu.create_new_transaction(tx_sender, tx_recipient, tx_amount)
+                if self.blockchain.add_tx(new_tx):
                     print('Added transaction.')
                 else:
                     print('Transaction failed.')
@@ -131,17 +125,11 @@ class Node:
             tx_sender = 'MINING'
             tx_recipient = self.wallet.public_key
             tx_amount = 100
-            first_transaction = self.create_new_transaction(tx_sender, tx_recipient, tx_amount)
+            first_transaction = cu.create_new_transaction(tx_sender, tx_recipient, tx_amount)
         new_chain = [Block(previous_hash='', index=0, transactions=[first_transaction], proof=0, time=0)]
         new_op = []
         self.blockchain.load_chain(new_chain, new_op)
         return cu.save_blockchain(blockchain=self.blockchain)
-
-    @staticmethod
-    def load_wallet(user_name=None):
-        user_name = user_name if user_name is not None else 'Test'
-        user_wallet = Wallet(user_name)
-        return user_wallet
 
 
 if __name__ == '__main__':

@@ -1,7 +1,8 @@
-from blockchain_util import chain_utils as cu
 import copy as cp
-from blockchain_core.block import Block
-from blockchain_core.transaction import Transaction as Tx
+
+from block import Block
+from transaction import Transaction as Tx
+import chain_utils as cu
 
 
 class Blockchain:
@@ -19,7 +20,7 @@ class Blockchain:
     def open_transactions(self):
         return self.__open_transactions
 
-    def add_transaction(self, new_transaction):
+    def add_tx(self, new_transaction):
         """
         Append a new value as well as the last chain value to the chain.
 
@@ -28,36 +29,39 @@ class Blockchain:
         """
         if cu.verify_balance(transaction=new_transaction, blockchain=cp.deepcopy(self)):
             self.__open_transactions.append(new_transaction)
-            return True
-        print('Not enough balance for this operation.')
-        return False
+            return 'The transaction was added.'
+        return 'Error: not enough balance for this operation.'
 
     def mine_block(self, user):
         """
         Method to add a new block to the chain.
         :return:
         """
-        last_block = self.chain[-1]
-        hashed_block = cu.hash_block(last_block)
-        temp_transactions = cp.deepcopy(self.__open_transactions)
-        # Checking if all the transactions are verified with the right signature
-        block_status = True
-        for count, tx in enumerate(temp_transactions):
-            if not cu.verify_transaction(tx):
-                print('Unsafe transaction found, removing it.')
-                del self.open_transactions[count]
-                block_status = False
-        if not block_status:
-            return False
-        # Add the reward transaction for the mining operation
-        reward_transaction = Tx(tx_recipient=user, tx_amount=self.MINING_REWARD)
-        temp_transactions.append(reward_transaction)
-        proof = cu.calculate_proof(temp_transactions, hashed_block)
-        block_to_mine = Block(previous_hash=hashed_block, index=len(self.chain), transactions=temp_transactions,
-                              proof=proof)
-        self.__chain.append(block_to_mine)
-        self.__open_transactions.clear()
-        return cu.save_blockchain(self)
+        if len(self.open_transactions) > 0:
+            last_block = self.chain[-1]
+            hashed_block = cu.hash_block(last_block)
+            temp_transactions = cp.deepcopy(self.__open_transactions)
+            # Checking if all the transactions are verified with the right signature
+            block_status = True
+            for count, tx in enumerate(temp_transactions):
+                if not cu.verify_transaction(tx):
+                    print('Unsafe transaction found, removing it.')
+                    del self.open_transactions[count]
+                    block_status = False
+            if not block_status:
+                return 'Block validation error.'
+            # Add the reward transaction for the mining operation
+            reward_transaction = Tx(tx_recipient=user, tx_amount=self.MINING_REWARD)
+            temp_transactions.append(reward_transaction)
+            proof = cu.calculate_proof(temp_transactions, hashed_block)
+            block_to_mine = Block(previous_hash=hashed_block, index=len(self.chain), transactions=temp_transactions,
+                                  proof=proof)
+            self.__chain.append(block_to_mine)
+            self.__open_transactions.clear()
+            return block_to_mine if cu.save_blockchain(self) else 'Chain saving error.'
+        else:
+            print('There are no transactions to mine a block.')
+            return 'No transactions error.'
 
     def output_blockchain(self):
 
