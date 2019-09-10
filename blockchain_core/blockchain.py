@@ -61,7 +61,7 @@ class Blockchain:
             return block_to_mine if cu.save_blockchain(self) else 'Chain saving error.'
         else:
             print('There are no transactions to mine a block.')
-            return 'No transactions error.'
+            return 'There are no transactions to mine.'
 
     def output_blockchain(self):
 

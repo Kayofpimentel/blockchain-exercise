@@ -141,13 +141,15 @@ def hash_block(block=None):
         return None
 
 
-def save_blockchain(blockchain, file_path='../resources/blockchain_data.txt'):
+def save_blockchain(blockchain, resources_path=None):
     """
     Method to save the data from recent transactions and mined blocks after the program is closed.
+    :param resources_path:
     :param blockchain:
-    :param file_path:
     :return if the operation was successful:
     """
+    path = resources_path if resources_path is not None else '../resources/'
+    blockchain_path = f'{path}blockchain_data.txt'
     dict_blockchain = [Od([('previous_hash', block.previous_hash),
                            ('index', block.index),
                            ('proof', block.proof),
@@ -161,7 +163,7 @@ def save_blockchain(blockchain, file_path='../resources/blockchain_data.txt'):
                            ('timestamp', block.timestamp)]) for block in blockchain.chain]
     dict_transactions = [tx.get_dict() for tx in blockchain.open_transactions]
     try:
-        with open(file_path, mode='w') as blockchain_file:
+        with open(blockchain_path, mode='w') as blockchain_file:
             blockchain_file.write(json.dumps(dict_blockchain))
             blockchain_file.write('\n')
             blockchain_file.write(json.dumps(dict_transactions))
@@ -175,13 +177,14 @@ def save_blockchain(blockchain, file_path='../resources/blockchain_data.txt'):
         return False
 
 
-def load_blockchain(resources_path):
+def load_blockchain(resources_path=None):
     """
     Method to load all the data from the chain when the program initiates.
     :param resources_path: The path
     :return the loaded blockchain
     """
-    blockchain_path = f'{resources_path}blockchain_data.txt'
+    path = resources_path if resources_path is not None else '../resources/'
+    blockchain_path = f'{path}blockchain_data.txt'
     try:
         with open(blockchain_path, mode='r') as blockchain_file:
 
@@ -227,6 +230,5 @@ def load_blockchain(resources_path):
 
 
 def load_wallet(user_name=None, create_key=True):
-    user_name = user_name
-    user_wallet = Wallet(user_name, create_key)
+    user_wallet = Wallet(user_name=user_name, create_key=create_key)
     return user_wallet

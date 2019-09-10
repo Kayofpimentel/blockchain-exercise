@@ -1,5 +1,4 @@
 import time as tm
-from datetime import datetime as dt
 
 
 class Transaction:
@@ -30,6 +29,3 @@ class Transaction:
     @property
     def timestamp(self):
         return self.__timestamp
-
-    def get_dict(self):
-        return self.__dict__.copy()

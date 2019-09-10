@@ -12,16 +12,16 @@ class Wallet:
         self.__public_key = None
         self.__private_key = private_key
         self.__user = user_name if user_name is not None else 'System0'
-        if self.__private_key is None and create_key:
-            self.load_keys(create_key)
+        self.load_keys(user=self.__user, create_key=create_key)
 
     @property
     def public_key(self):
         return self.__public_key
 
-    def load_keys(self, user, create_key=True):
+    def load_keys(self, user, path=None, create_key=True):
         user = user
-        file_name = f'../resources/{user}.txt'
+        file_path = path if path is not None else '../resources/'
+        file_name = f'{file_path}{user}.txt'
         try:
             print('Loading keys from user file.')
             with open(file_name, mode='r') as wallet_file:
@@ -40,11 +40,11 @@ class Wallet:
             else:
                 return 'Error: could not load keys, user not found.'
 
-    def create_keys(self, user):
-        if self.__private_key is None:
+    def create_keys(self, user, private_key=None):
+        if private_key is None:
             self.__private_key, self.__public_key = self.generate_keys()
         else:
-            self.__public_key = binascii.hexlify(RSA.importKey(binascii.unhexlify(self.__private_key))
+            self.__public_key = binascii.hexlify(RSA.importKey(binascii.unhexlify(private_key))
                                                  .publickey().exportKey(format='DER')).decode(
                 'ascii')
         print('Saving new keys to user file.')
