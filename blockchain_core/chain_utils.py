@@ -1,16 +1,12 @@
 import json
+import binascii
 import hashlib as hl
 import functools as ft
-from collections import OrderedDict as Od
-
-import binascii
-
-from Crypto.Hash import SHA256
-
 from block import Block
-from wallet import Wallet
-from transaction import Transaction as Tx
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
+from collections import OrderedDict as Od
+from transaction import Transaction as Tx
 from Crypto.Signature import PKCS1_v1_5 as CSign
 
 HASH_VALIDATION = '00'
@@ -51,7 +47,6 @@ def verify_chain_is_safe(chain):
         if not block.previous_hash == hash_block(chain[index - 1]):
             return False
         if not valid_proof(block.transactions, block.previous_hash, block.proof):
-            print('Proof of work is invalid.')
             return False
     return True
 
@@ -60,9 +55,9 @@ def get_balance(blockchain, user):
     """
     Calculates the account balance of the owner
 
-    :param user:
-    :param blockchain:
-    :return: The total balance of the owner
+    :param user: The public key for this user.
+    :param blockchain: The blockchain to calculate the balance of this user.
+    :return: The total balance of the owner.
     """
     # Calculating total amount that was sent to other participants.
     tx_sender = [tx.amount
@@ -150,18 +145,7 @@ def save_blockchain(blockchain, resources_path=None):
     """
     path = resources_path if resources_path is not None else '../resources/'
     blockchain_path = f'{path}blockchain_data.txt'
-    dict_blockchain = [Od([('previous_hash', block.previous_hash),
-                           ('index', block.index),
-                           ('proof', block.proof),
-                           ('transactions',
-                            [Od([('sender', tx.sender),
-                                 ('recipient', tx.recipient),
-                                 ('amount', tx.amount),
-                                 ('timestamp', tx.timestamp),
-                                 ('signature', tx.signature)])
-                             for tx in block.transactions]),
-                           ('timestamp', block.timestamp)]) for block in blockchain.chain]
-    dict_transactions = [tx.get_dict() for tx in blockchain.open_transactions]
+    dict_blockchain, dict_transactions = object_to_dict(blockchain)
     try:
         with open(blockchain_path, mode='w') as blockchain_file:
             blockchain_file.write(json.dumps(dict_blockchain))
@@ -174,7 +158,8 @@ def save_blockchain(blockchain, resources_path=None):
         return True
 
     except IOError:
-        return False
+        print(f'Could not save chain on {resources_path}. The error is the following {IOError}')
+        raise SystemExit(0)
 
 
 def load_blockchain(resources_path=None):
@@ -205,17 +190,17 @@ def load_blockchain(resources_path=None):
                                ) for loaded_block in loaded_chain]
 
             loaded_transactions = json.loads((blockchain_info[1]))
-            new_transactions = [Tx(tx_sender=open_tx['_Transaction__sender'],
-                                   tx_recipient=open_tx['_Transaction__recipient'],
-                                   tx_signature=open_tx['_Transaction__signature'],
-                                   tx_amount=open_tx['_Transaction__amount'],
-                                   tx_time=open_tx['_Transaction__timestamp'])
+            new_transactions = [Tx(tx_sender=open_tx['sender'],
+                                   tx_recipient=open_tx['recipient'],
+                                   tx_signature=open_tx['signature'],
+                                   tx_amount=open_tx['amount'],
+                                   tx_time=open_tx['timestamp'])
                                 for open_tx in loaded_transactions]
 
         return new_chain, new_transactions
 
     except (IOError, IndexError):
-        return None
+        return False
 
     # with open(filename, mode='ab+') as blockchain_file:
     #     blockchain_file.seek(0)
@@ -229,6 +214,27 @@ def load_blockchain(resources_path=None):
     # self.__open_transactions = blockchain_info['ot']
 
 
-def load_wallet(user_name=None, create_key=True):
-    user_wallet = Wallet(user_name=user_name, create_key=create_key)
-    return user_wallet
+def object_to_dict(blockchain):
+    """
+    Method to transform a object blockchain in ordered dictionaries.
+    :param blockchain:
+    :return:
+    """
+    dict_blockchain = [Od([('previous_hash', block.previous_hash),
+                           ('index', block.index),
+                           ('proof', block.proof),
+                           ('transactions',
+                            [Od([('sender', tx.sender),
+                                 ('recipient', tx.recipient),
+                                 ('amount', tx.amount),
+                                 ('timestamp', tx.timestamp),
+                                 ('signature', tx.signature)])
+                             for tx in block.transactions]),
+                           ('timestamp', block.timestamp)]) for block in blockchain.chain]
+    dict_transactions = [Od([('sender', tx.sender),
+                             ('recipient', tx.recipient),
+                             ('amount', tx.amount),
+                             ('timestamp', tx.timestamp),
+                             ('signature', tx.signature)])
+                         for tx in blockchain.open_transactions]
+    return dict_blockchain, dict_transactions

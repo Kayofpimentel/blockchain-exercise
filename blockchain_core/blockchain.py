@@ -29,8 +29,8 @@ class Blockchain:
         """
         if cu.verify_balance(transaction=new_transaction, blockchain=cp.deepcopy(self)):
             self.__open_transactions.append(new_transaction)
-            return 'The transaction was added.'
-        return 'Error: not enough balance for this operation.'
+            return True
+        return False
 
     def mine_block(self, user):
         """
@@ -73,5 +73,6 @@ class Blockchain:
                 print('-' * 20)
 
     def load_chain(self, loaded_chain, loaded_transactions):
-        self.__chain = cp.deepcopy(loaded_chain)
-        self.__open_transactions = cp.deepcopy(loaded_transactions)
+        self.__chain = loaded_chain
+        self.__open_transactions = loaded_transactions
+        return self
