@@ -7,14 +7,19 @@ from blockchain import Blockchain
 
 class Node:
 
-    def __init__(self, resources_file_path=None):
+    def __init__(self, resources_file_path=None, node_id=None):
         self.resources_path = resources_file_path if resources_file_path is not None else '../resources/'
         self.__wallets = {}
+        self.node_id = None
         chain_info = cu.load_blockchain(self.resources_path)
         if chain_info:
             self.__blockchain = Blockchain(*chain_info)
+            self.node_id = wu.generate_node_id(self.__blockchain.nodes)
+            self.__blockchain.add_node(self.node_id)
         else:
             self.__blockchain = self.start_new_chain()
+            self.node_id = wu.generate_node_id()
+            self.__blockchain.add_node(self.node_id)
             cu.save_blockchain(self.__blockchain, self.resources_path)
 
     def start_new_chain(self, first_transaction=None):
@@ -35,7 +40,7 @@ class Node:
 
     def add_wallet(self, user, wallet_path):
         """
-
+        Add a wallet(user) to a node.
         :param user:
         :param wallet_path:
         :return:
@@ -47,7 +52,7 @@ class Node:
         else:
             return False
 
-    def remove_wallet(self,user):
+    def remove_wallet(self, user):
         if user in self.__wallets:
             self.__wallets.pop(user)
             return True
@@ -84,3 +89,9 @@ class Node:
 
     def save_chain(self):
         return cu.save_blockchain(cp.deepcopy(self.__blockchain))
+
+    def add_node_to_chain(self, new_node_id):
+        return self.__blockchain.add_node(new_node_id)
+
+    def remove_node(self, node_id):
+        return self.__blockchain.remove_node(node_id)

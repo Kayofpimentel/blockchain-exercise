@@ -7,9 +7,10 @@ import chain_utils as cu
 
 class Blockchain:
 
-    def __init__(self, chain=None, open_txs=None,  mining_reward=10):
+    def __init__(self, chain=None, open_txs=None, nodes=None, mining_reward=10):
         self.__chain = chain
         self.__open_transactions = open_txs
+        self.__nodes = set() if nodes is None else set(nodes)
         self.MINING_REWARD = mining_reward
 
     @property
@@ -19,6 +20,10 @@ class Blockchain:
     @property
     def open_transactions(self):
         return self.__open_transactions
+
+    @property
+    def nodes(self):
+        return list(self.__nodes)
 
     def add_tx(self, new_transaction):
         """
@@ -72,7 +77,27 @@ class Blockchain:
             if index == (len(self.chain) - 1):
                 print('-' * 20)
 
-    def load_chain(self, loaded_chain, loaded_transactions):
-        self.__chain = loaded_chain
-        self.__open_transactions = loaded_transactions
-        return self
+    def add_node(self, node_id):
+        """
+        Method to add a node connected to this blockchain.
+        :param node_id:
+        :return:
+        """
+        added = node_id not in self.__nodes
+        if added:
+            self.__nodes.add(node_id)
+            added = cu.save_blockchain(self)
+        return added
+
+    def remove_node(self, node_id):
+        """
+        Method to remove a node connected to this blockchain.
+        :param node_id:
+        :return:
+        """
+        node_num = int(node_id)
+        discarded = node_num in self.__nodes
+        if discarded:
+            self.__nodes.discard(node_num)
+            discarded = cu.save_blockchain(self)
+        return discarded

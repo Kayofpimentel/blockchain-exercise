@@ -1,30 +1,32 @@
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
-from node import Node
+import os
 import chain_utils as cu
 import wallet_utils as wu
+from node import Node
+from flask_cors import CORS
+from flask import Flask, jsonify, request, send_from_directory
+
 
 __web_app = Flask(__name__)
 CORS(__web_app)
-_node = None
-_user = None
 _ui_path = None
 
 
-def start_node(default_path=None, new_ui_path=None):
-    global __web_app, _node, _user, _ui_path
+def start_node(new_ui_path=None):
+    global __web_app, _ui_path
     _ui_path = '../blockchain_ui/' if new_ui_path is None else new_ui_path
-    _node = Node(default_path)
-    print(_ui_path)
-    _user = 'Kayo'
     _node.add_wallet(_user, f'{_node.resources_path}{_user}.txt')
     print('Node started, application online.')
-    __web_app.run(host='127.0.0.1', port=5000)
+    __web_app.run(host='127.0.0.1', port=_node.node_id)
 
 
 @__web_app.route('/', methods=['GET'])
-def get_ui():
+def get_node_ui():
     return send_from_directory(_ui_path, 'node.html')
+
+
+@__web_app.route('/network', methods=['GET'])
+def get_network_ui():
+    return send_from_directory(_ui_path, 'network.html')
 
 
 @__web_app.route('/balance', methods=['GET'])
@@ -34,14 +36,18 @@ def get_balance():
 
 @__web_app.route('/chain', methods=['GET'])
 def get_chain():
-    dict_chain, dict_transactions = cu.object_to_dict(_node.output_blockchain())
-    response = {'chain': dict_chain, 'message': 'These are all the open transactions.'}
-    return jsonify(response), 200
+    status = 500
+    response = {}
+    dict_chain, _, _ = cu.chain_prep_to_save(_node.output_blockchain())
+    if dict_chain is not None:
+        response = {'chain': dict_chain, 'message': 'These are all the open transactions.'}
+        status = 200
+    return jsonify(response), status
 
 
 @__web_app.route('/txs', methods=['GET'])
 def get_transactions():
-    dict_chain, dict_transactions = cu.object_to_dict(_node.output_blockchain())
+    _, dict_transactions, _ = cu.chain_prep_to_save(_node.output_blockchain())
     response = {}
     if len(dict_transactions) > 0:
         response['transactions'] = dict_transactions
@@ -119,25 +125,92 @@ def new_tx():
 @__web_app.route('/mine', methods=['POST'])
 def mine():
     response = {}
+    status = 500
     if _node.mine_block(_user):
         blockchain = _node.output_blockchain()
         response['message'] = 'Mining operation was successful.'
         response['block'] = f'This was the block added: \n{blockchain.chain[-1].__dict__}'
         response['mining_reward'] = f'{blockchain.MINING_REWARD}'
         response['balance'] = f'{_node.user_balance(_user)}'
-        return jsonify(response), 200
+        status = 200
     else:
         response['message'] = 'Error mining a new block.'
-        return jsonify(response), 500
+        response['error'] = 'There is no block to mine.'
+    return jsonify(response), status
+
+
+@__web_app.route("/node", methods=['POST'])
+def add_node():
+    global _node
+    response = {}
+    required_info = ['node_id']
+    request_info = request.get_json()
+    status = 500
+    if request_info is None:
+        response['message'] = 'Error adding node.'
+        response['error'] = 'No data found regarding the node.'
+        status = 400
+    elif not all(key in request_info for key in required_info):
+        response['message'] = 'Error adding node.'
+        response['error'] = 'Some data was missing from the request.'
+        status = 400
+    else:
+        new_node = int(request_info['node_id'])
+        if _node.add_node_to_chain(new_node):
+            response['message'] = f'New node added.'
+            status = 200
+        else:
+            response['message'] = 'Error adding node.'
+            response['error'] = 'Node already connected to chain.'
+    return jsonify(response), status
+
+
+@__web_app.route('/node/<node_id>', methods=['DELETE'])
+def delete_node(node_id):
+    global _node
+    status = 500
+    response = {}
+    if node_id == "" or node_id is None:
+        response['message'] = 'Error removing node.'
+        response['error'] = 'Some data was missing from the request.'
+        status = 400
+    else:
+        if _node.remove_node(node_id):
+
+            response['message'] = 'Node removed.'
+            response['nodes'] = f'These are the remaining nodes: {_node.output_blockchain().nodes}'
+            status = 200
+        else:
+            response['message'] = 'Error removing node.'
+            response['error'] = 'There was a problem with the node.'
+    return jsonify(response), status
+
+
+@__web_app.route('/node', methods=['GET'])
+def get_nodes():
+    global _node
+    status = 500
+    response = {}
+    nodes = _node.output_blockchain().nodes
+    if nodes is not None:
+        response['message'] = 'These are all the present nodes.'
+        response['nodes'] = nodes
+        status = 200
+    return jsonify(response), status
 
 
 @__web_app.route('/quit', methods=['GET'])
 def quit_api():
-    # TODO
-    return ''
+    global _node
+    _node.remove_node(_node.node_id)
+    _node.save_chain()
+    # noinspection PyProtectedMember
+    os._exit(1)
 
 
 if __name__ == '__main__':
+    _node = Node()
+    _user = 'Hernan'
     if not start_node():
         print('Error during program. Closing node.')
     print('Program finished.')
