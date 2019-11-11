@@ -1,4 +1,5 @@
 import chain_utils as cu
+import node_utils
 import wallet_utils as wu
 import copy as cp
 from block import Block
@@ -10,17 +11,17 @@ class Node:
     def __init__(self, resources_file_path=None, node_id=None):
         self.resources_path = resources_file_path if resources_file_path is not None else '../resources/'
         self.__wallets = {}
-        self.node_id = None
         chain_info = cu.load_blockchain(self.resources_path)
-        if chain_info:
+        if chain_info is not None:
             self.__blockchain = Blockchain(*chain_info)
-            self.node_id = wu.generate_node_id(self.__blockchain.nodes)
+            self.node_id = node_utils.generate_node_id(self.__blockchain.nodes) if node_id is None else node_id
             self.__blockchain.add_node(self.node_id)
         else:
             self.__blockchain = self.start_new_chain()
-            self.node_id = wu.generate_node_id()
+            self.node_id = node_utils.generate_node_id() if node_id is None else node_id
             self.__blockchain.add_node(self.node_id)
             cu.save_blockchain(self.__blockchain, self.resources_path)
+
 
     def start_new_chain(self, first_transaction=None):
         if first_transaction is None:

@@ -138,7 +138,7 @@ def hash_block(block=None):
 
 def save_blockchain(blockchain, resources_path=None):
     """
-    Method to save the data from recent transactions and mined blocks after the program is closed.
+    Method to save the data from recent transactions, mined blocks and connected nodes.
     :param resources_path:
     :param blockchain:
     :return if the operation was successful:
@@ -200,7 +200,7 @@ def load_blockchain(resources_path=None):
         return new_chain, new_transactions, new_nodes
 
     except (IOError, IndexError):
-        return False
+        return None
 
     # with open(filename, mode='ab+') as blockchain_file:
     #     blockchain_file.seek(0)

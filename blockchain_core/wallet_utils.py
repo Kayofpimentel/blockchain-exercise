@@ -1,4 +1,3 @@
-from random import randint
 from Crypto.Signature import PKCS1_v1_5 as CSign
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
@@ -66,13 +65,3 @@ def get_public_key(path):
 
 def create_new_wallet():
     return Wallet(*generate_keys())
-
-
-def generate_node_id(nodes=None):
-    min_port = 5000
-    max_port = 9999
-    random_id = randint(min_port, max_port)
-    if nodes is not None:
-        return random_id if random_id not in nodes else generate_node_id(nodes)
-    return random_id
-

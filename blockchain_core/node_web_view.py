@@ -192,6 +192,7 @@ def get_nodes():
     status = 500
     response = {}
     nodes = _node.output_blockchain().nodes
+    nodes.remove(_node.node_id)
     if nodes is not None:
         response['message'] = 'These are all the present nodes.'
         response['nodes'] = nodes
@@ -209,8 +210,13 @@ def quit_api():
 
 
 if __name__ == '__main__':
-    _node = Node()
-    _user = 'Hernan'
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('-p', '--port', default=None)
+    parser.add_argument('-u', '--user', default='Kayo')
+    args = parser.parse_args()
+    _node = Node(node_id=args.port)
+    _user = args.user
     if not start_node():
         print('Error during program. Closing node.')
     print('Program finished.')
