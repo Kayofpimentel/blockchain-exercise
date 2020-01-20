@@ -29,11 +29,6 @@ def get_network_ui():
     return send_from_directory(_ui_path, 'network.html')
 
 
-@__web_app.route('/balance', methods=['GET'])
-def get_balance():
-    return f'{_node.user_balance(_user)}'
-
-
 @__web_app.route('/chain', methods=['GET'])
 def get_chain():
     status = 500
@@ -56,6 +51,79 @@ def get_transactions():
         response['error'] = 'Error with open transactions.'
         response['message'] = 'There are no open transactions.'
     return jsonify(response), 200
+
+
+@__web_app.route('/balance', methods=['GET'])
+def get_balance():
+    return f'{_node.user_balance(_user)}'
+
+
+@__web_app.route('/mine', methods=['POST'])
+def mine():
+    response = {}
+    status = 500
+    if _node.mine_block(_user):
+        blockchain = _node.output_blockchain()
+        response['message'] = 'Mining operation was successful.'
+        response['block'] = f'This was the block added: \n{blockchain.chain[-1].__dict__}'
+        response['mining_reward'] = f'{blockchain.MINING_REWARD}'
+        response['balance'] = f'{_node.user_balance(_user)}'
+        status = 200
+    else:
+        response['message'] = 'Error mining a new block.'
+        response['error'] = 'There is no block to mine.'
+    return jsonify(response), status
+
+
+@__web_app.route('/tx', methods=['POST'])
+def new_tx():
+    response = {}
+    status = 400
+    required_info = ['recipient', 'amount']
+    request_info = request.get_json()
+    if request_info is None:
+        response['message'] = 'Error adding transaction.'
+        response['error'] = 'No data found for the transaction.'
+    elif not all(key in request_info for key in required_info):
+        response['message'] = 'Error adding transaction.'
+        response['error'] = 'Some data was missing from the request.'
+    else:
+        recipient_name = request_info['recipient']
+        tx_recipient = wu.get_public_key(f'{_node.resources_path}{recipient_name}.txt')
+        if tx_recipient is None:
+            response['message'] = 'Error adding transaction.'
+            response['error'] = 'The recipient does not exist.'
+        else:
+            tx_amount = request_info['amount']
+            if not _node.new_transaction(_user, tx_recipient, tx_amount):
+                response['message'] = 'Error adding transaction.'
+                response['error'] = 'There is no funds for this transaction.'
+            else:
+                response['message'] = 'Transaction added.'
+                response['transaction'] = _node.output_blockchain().open_transactions[-1].__dict__
+                response['balance'] = f'{_node.user_balance(_user)}'
+                status = 200
+
+    return jsonify(response), status
+
+
+@__web_app.route('/bd-tx', methods=['POST'])
+def receive_tx():
+    tx_info = request.get_json()
+    response = {}
+    status = 500
+    required_info = ['sender', 'recipient', 'amount', 'signature']
+
+    if tx_info is None:
+        response['message'] = 'Error adding transaction.'
+        response['error'] = 'No data found for the transaction.'
+    elif not all(key in tx_info for key in required_info):
+        response['message'] = 'Error adding transaction.'
+        response['error'] = 'Some data was missing from the request.'
+    elif _node.receive_transaction(tx_info):
+        response['message'] = 'Transaction added.'
+        status = 200
+    return jsonify(response), status
 
 
 @__web_app.route('/wallet', methods=['PUT'])
@@ -87,55 +155,6 @@ def create_wallet():
         response['balance'] = f'{_node.user_balance(_user)}'
         response['public_key'] = f'{wallet.public_key}'
         status = 200
-    return jsonify(response), status
-
-
-@__web_app.route('/tx', methods=['POST'])
-def new_tx():
-    response = {}
-    status = 500
-    required_info = ['recipient', 'amount']
-    request_info = request.get_json()
-    if request_info is None:
-        response['message'] = 'Error adding transaction.'
-        response['error'] = 'No data found for the transaction.'
-    elif not all(key in request_info for key in required_info):
-        response['message'] = 'Error adding transaction.'
-        response['error'] = 'Some data was missing from the request.'
-    else:
-        recipient_name = request_info['recipient']
-        tx_recipient = wu.get_public_key(f'{_node.resources_path}{recipient_name}.txt')
-        if tx_recipient is None:
-            response['message'] = 'Error adding transaction.'
-            response['error'] = 'The recipient does not exist.'
-        else:
-            tx_amount = request_info['amount']
-            if not _node.new_transaction(_user, tx_recipient, tx_amount):
-                response['message'] = 'Error adding transaction.'
-                response['error'] = 'There is no funds for this transaction.'
-            else:
-                response['message'] = 'Transaction added.'
-                response['transaction'] = _node.output_blockchain().open_transactions[-1].__dict__
-                response['balance'] = f'{_node.user_balance(_user)}'
-                status = 200
-
-    return jsonify(response), status
-
-
-@__web_app.route('/mine', methods=['POST'])
-def mine():
-    response = {}
-    status = 500
-    if _node.mine_block(_user):
-        blockchain = _node.output_blockchain()
-        response['message'] = 'Mining operation was successful.'
-        response['block'] = f'This was the block added: \n{blockchain.chain[-1].__dict__}'
-        response['mining_reward'] = f'{blockchain.MINING_REWARD}'
-        response['balance'] = f'{_node.user_balance(_user)}'
-        status = 200
-    else:
-        response['message'] = 'Error mining a new block.'
-        response['error'] = 'There is no block to mine.'
     return jsonify(response), status
 
 

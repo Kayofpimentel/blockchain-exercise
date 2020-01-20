@@ -1,7 +1,8 @@
-import chain_utils as cu
 import node_utils
-import wallet_utils as wu
+import requests
 import copy as cp
+import chain_utils as cu
+import wallet_utils as wu
 from block import Block
 from blockchain import Blockchain
 
@@ -21,7 +22,6 @@ class Node:
             self.node_id = node_utils.generate_node_id() if node_id is None else node_id
             self.__blockchain.add_node(self.node_id)
             cu.save_blockchain(self.__blockchain, self.resources_path)
-
 
     def start_new_chain(self, first_transaction=None):
         if first_transaction is None:
@@ -60,12 +60,34 @@ class Node:
         else:
             return False
 
+    def receive_transaction(self, *tx_info):
+        new_tx = cu.create_new_transaction(tx_info)
+        return self.__blockchain.add_tx(new_tx)
+
     def new_transaction(self, *tx_info):
         user, tx_recipient, tx_amount = tx_info
         user_wallet = self.__wallets[user]
+        tx_sender = user_wallet.public_key
         tx_signature = wu.sign_transaction(user_wallet, tx_recipient, tx_amount)
-        new_tx = cu.create_new_transaction(user_wallet.public_key, tx_recipient, tx_amount, tx_signature)
-        return self.__blockchain.add_tx(new_tx)
+        result = self.receive_transaction(tx_sender, tx_recipient, tx_amount, tx_signature)
+        if result:
+            for node in self.__blockchain.nodes:
+                url = f'http://127.0.0.1:{node}/bc-tx'
+                try:
+                    response = requests.post(url, json=
+                    {'sender': tx_sender,
+                     'recipient': tx_recipient,
+                     'amount': tx_amount,
+                     'signature': tx_signature})
+                    # Check for positive response on broadcast
+                    if (response.status_code / 400) > 1:
+                        result = False
+                        # TODO check the problem and resolve, since the tx has already been added
+                        break
+                except requests.exceptions.ConnectionError:
+                    # TODO check with other nodes if the node is active
+                    continue
+        return result
 
     def mine_block(self, user):
         if len(self.__blockchain.open_transactions) == 0:
