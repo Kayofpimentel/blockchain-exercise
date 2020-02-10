@@ -103,12 +103,12 @@
         </div>
       </div>
       <hr>
-      <div v-if="!wallet" class="row">
+      <div v-if="!user" class="row">
         <div class="col">
           <div class="alert alert-warning">Create a Wallet to start sending coins or to mine coins!</div>
         </div>
       </div>
-      <div v-if="wallet" class="row">
+      <div v-if="user" class="row">
         <div class="col">
           <form @submit.prevent="onSendTx">
             <div class="form-group">
@@ -146,7 +146,7 @@
       <div class="row my-3">
         <div class="col">
           <button class="btn btn-primary" @click="onLoadData">{{ view === 'chain' ? 'Load Blockchain' : 'Load Transactions' }}</button>
-          <button v-if="view === 'chain' && wallet" class="btn btn-success" @click="onMine">Mine Coins</button>
+          <button v-if="view === 'chain' && user" class="btn btn-success" @click="onMine">Mine Coins</button>
         </div>
       </div>
       <div class="row">
@@ -212,7 +212,7 @@
       data: {
         blockchain: [],
         openTransactions: [],
-        wallet: null,
+        user: null,
         view: 'chain',
         walletLoading: false,
         txLoading: false,
@@ -237,12 +237,12 @@
       },
       methods: {
         onCreateWallet: function() {
-          // Send Http request to create a new wallet (and return keys)
+          // Send Http request to create a new user (and return keys)
           var vm = this;
           vm.walletLoading = true;
-          axios.post('/wallet')
+          axios.post('/user')
             .then(function(response) {
-              vm.wallet = {
+              vm.user = {
                 public_key: response.data.public_key
               }
               vm.error = null;
@@ -253,12 +253,12 @@
             });
         },
         onLoadWallet: function() {
-          // Send Http request to load an existing wallet (from a file on the server)
+          // Send Http request to load an existing user (from a file on the server)
           var vm = this;
           vm.walletLoading = true;
-          axios.put('/wallet')
+          axios.put('/user')
             .then(function(response) {
-              vm.wallet = {
+              vm.user = {
                 public_key: response.data.public_key
               }
               vm.error = null;
