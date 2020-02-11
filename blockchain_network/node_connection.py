@@ -20,7 +20,7 @@ class NodeConnection:
             self.start_connection(config_info)
         else:
             self.__wallet = None
-            self.config = None
+            self.config = {}
             self.__node = None
 
     @property
@@ -31,6 +31,55 @@ class NodeConnection:
     def user(self, user):
         self.config.update({"user": user})
         self.connect_wallet()
+
+    @property
+    def open_transactions(self):
+        return self.__node.chain_open_transactions
+
+    @property
+    def blockchain(self):
+        return self.__node.chain_blocks
+
+    @property
+    def nodes(self):
+        return self.__node.chain_connected_nodes
+
+    @property
+    def balance(self):
+        """
+        Method to recover the user balance.
+        :return:
+        """
+        return self.__node.get_balance(self.user)
+
+    @property
+    def reward(self):
+        return self.__node.mining_reward
+
+    def connect_node(self):
+        """
+        Method that start the node and loads the chain_blocks.
+        :return: If the node was added or not.
+        """
+        new_chain_info = cu.load_blockchain(self.config["dir"])
+        self.__node = Node(node_id=self.config["port"], chain_info=new_chain_info)
+        if new_chain_info is None:
+            self.__node.new_chain(self.user)
+            cu.save_blockchain(*self.__node.chain_prep_to_save())
+
+
+    def connect_wallet(self):
+        """
+        Method to recover the user keys and create the Wallet object.
+        :return:
+        """
+        wallet_path = f'{self.config["dir"]}{self.config["user"]}.txt'
+        if os.path.isfile(wallet_path):
+            self.__wallet = Wallet(*wu.load_keys(wallet_path))
+        else:
+            self.__wallet = Wallet()
+            self.__wallet.generate_keys()
+            wu.save_keys(self.__wallet, wallet_path)
 
     def check_wallet(self, user):
         wallet_path = f'{self.config["dir"]}{user}.txt'
@@ -46,32 +95,12 @@ class NodeConnection:
         self.connect_wallet()
         self.connect_node()
 
-    def connect_node(self):
-        """
-        Method that start the node and loads the blockchain.
-        :return: If the node was added or not.
-        """
-        new_chain_info = cu.load_blockchain(self.config["dir"])
-        self.__node = Node(node_id=self.config["port"], chain_info=new_chain_info)
-
-    def connect_wallet(self):
-        """
-        Method to recover the user keys and create the Wallet object.
-        :return:
-        """
-        wallet_path = f'{self.config["dir"]}{self.config["user"]}.txt'
-        if os.path.isfile(wallet_path):
-            self.__wallet = Wallet(*wu.load_keys(wallet_path))
-        else:
-            self.__wallet = Wallet()
-            self.__wallet.generate_keys()
-            wu.save_keys(self.__wallet, wallet_path)
-
-    def send_transaction(self, recipient, tx_amount):
-        tx_sender = self.user
+    def send_transaction(self, recipient, tx_amount, tx_sender=None, tx_signature=None):
+        tx_sender = self.user if tx_sender is None else tx_sender
         if self.__node.verify_balance(tx_sender, tx_amount):
             tx_recipient = wu.load_keys(f'{self.config["dir"]}{recipient}.txt')[1]
-            tx_signature = self.__wallet.sign_transaction(tx_recipient, tx_amount)
+            if tx_signature is None:
+                tx_signature = self.__wallet.sign_transaction(tx_recipient, tx_amount)
             return self.__node.receive_transaction(tx_sender, tx_recipient, tx_amount, tx_signature)
         else:
             print('Not enough funds to make transaction.')
@@ -85,16 +114,8 @@ class NodeConnection:
         print('There was a problem mining the block. Operation lost.')
         return False
 
-    def user_balance(self):
-        """
-        Method to recover the user balance.
-        :return:
-        """
-        user_key = self.__wallet.public_key
-        return self.__node.get_balance(user_key)
-
-    def output_console_blockchain(self):
-        self.__node.output_blockchain()
+    def console_format_blockchain(self):
+        return self.__node.output_blockchain()
 
     def node_security(self):
         return self.__node.verify_chain_is_safe()
@@ -106,4 +127,4 @@ class NodeConnection:
         self.__node.disconnect_to_chain()
         if self.__node.verify_chain_is_safe():
             print(*self.__node.chain_prep_to_save())
-            return cu.save_blockchain(*self.__node.chain_prep_to_save(), )
+            return cu.save_blockchain(*self.__node.chain_prep_to_save())

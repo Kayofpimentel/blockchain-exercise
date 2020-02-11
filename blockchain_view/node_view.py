@@ -14,7 +14,7 @@ class NodeView:
 
     def connect_node(self, config_info):
         self.__node_connection.start_connection(config_info)
-        return self.run()
+        return self.run_node()
 
     def create_transaction(self, recipient_name, tx_amount):
         if self.node_connection.send_transaction(recipient_name, tx_amount):

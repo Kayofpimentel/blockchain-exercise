@@ -10,16 +10,46 @@ class Node:
 
     def __init__(self, node_id, chain_info=None):
         self.node_id = node_id
-        self.__blockchain = bm.Blockchain(*chain_info)
+        self.__blockchain = bm.Blockchain(*chain_info) if chain_info is not None else bm.Blockchain()
         self.__blockchain.add_node(self.node_id)
 
     @property
-    def blockchain(self):
-        return cp.deepcopy(self.__blockchain.chain)
+    def chain_blocks(self):
+        temp_blocks = self.__blockchain.chain
+        dict_blockchain = [Od([('previous_hash', block.previous_hash),
+                               ('index', block.index),
+                               ('proof', block.proof),
+                               ('transactions',
+                                [Od([('sender', tx.sender),
+                                     ('recipient', tx.recipient),
+                                     ('amount', tx.amount),
+                                     ('timestamp', tx.timestamp),
+                                     ('signature', tx.signature)])
+                                 for tx in block.transactions]),
+                               ('timestamp', block.timestamp)]) for block in temp_blocks]
+        return dict_blockchain
 
     @property
     def mining_reward(self):
         return self.__blockchain.reward
+
+    @property
+    def chain_open_transactions(self):
+        temp_transactions = self.__blockchain.open_transactions
+        dict_transactions = [Od([('sender', tx.sender),
+                                 ('recipient', tx.recipient),
+                                 ('amount', tx.amount),
+                                 ('timestamp', tx.timestamp),
+                                 ('signature', tx.signature)])
+                             for tx in temp_transactions]
+        return dict_transactions
+
+    @property
+    def chain_connected_nodes(self):
+        return cp.copy(self.__blockchain.nodes)
+
+    def new_chain(self, new_user):
+        self.__blockchain.start_new_chain(new_user)
 
     def receive_transaction(self, tx_sender, tx_recipient, tx_amount, tx_signature):
         result = self.__blockchain.add_tx(tx_recipient, tx_amount, tx_sender, tx_signature)
@@ -42,10 +72,10 @@ class Node:
          Verify the current chain integrity and return True if it's valid or False if it's not.
         :return Returns True if the chain is safe or False if not.
         """
-        for index, block in enumerate(self.blockchain):
+        for index, block in enumerate(self.__blockchain.chain):
             if index == 0:
                 continue
-            if not block.previous_hash == bm.hash_block(self.blockchain[index - 1]):
+            if not block.previous_hash == bm.hash_block(self.__blockchain.chain[index - 1]):
                 return False
             if not bm.valid_proof(block.transactions, block.previous_hash, block.proof):
                 return False
@@ -55,24 +85,26 @@ class Node:
         """
         Calculates the account balance of the owner
 
+        :rtype: object
         :param user: The public key for this user.
         :return: The total balance of the owner.
         """
-        open_tx = self.__blockchain.open_transactions
+        temp_open_tx = self.__blockchain.open_transactions
+        temp_chain_blocks = self.__blockchain.chain
         # Calculating total amount that was sent to other participants.
         tx_sender = [tx.amount
-                     for block in self.blockchain
+                     for block in temp_chain_blocks
                      for tx in block.transactions
                      if tx.sender == user]
-        open_tx_sender = [tx.amount for tx in open_tx if tx.sender == user]
+        open_tx_sender = [tx.amount for tx in temp_open_tx if tx.sender == user]
         tx_sender += open_tx_sender
         amount_sent = ft.reduce(lambda tx_sum, tx_amt: tx_sum + tx_amt, tx_sender, 0)
         # Calculating total amount that was received from other participants.
         tx_recipient = [tx.amount
-                        for block in self.blockchain
+                        for block in temp_chain_blocks
                         for tx in block.transactions
                         if tx.recipient == user]
-        open_tx_recipient = [tx.amount for tx in open_tx if tx.recipient == user]
+        open_tx_recipient = [tx.amount for tx in temp_open_tx if tx.recipient == user]
         tx_recipient += open_tx_recipient
         amount_received = ft.reduce(lambda tx_sum, tx_amt: tx_sum + tx_amt, tx_recipient, 0)
         return amount_received - amount_sent
@@ -87,42 +119,25 @@ class Node:
         sender_balance = self.get_balance(sender)
         return sender_balance >= amount
 
+    # TODO Return the result as a String instead of printing it directly.
     def output_blockchain(self):
         """
-        Method that prints the blockchain in the console.
+        Method that prints the chain_blocks in the console.
         :return: Nothing
         """
-        for index, block in enumerate(self.blockchain):
+        for index, block in enumerate(self.chain_blocks):
             print('-' * 20)
             print(f'Outputting block {index}:')
             print(block)
-            if index == (len(self.blockchain) - 1):
+            if index == (len(self.chain_blocks) - 1):
                 print('-' * 20)
 
     def chain_prep_to_save(self):
         """
-        Method to transform a object blockchain in ordered dictionaries.
-        :return: This node's blockchain blocks, transactions that are still open and all the nodes connected to it.
+        Method to transform a object chain_blocks in ordered dictionaries.
+        :return: This node's chain_blocks blocks, transactions that are still open and all the nodes connected to it.
         """
-        chain_to_save = cp.deepcopy(self.__blockchain)
-        dict_blockchain = [Od([('previous_hash', block.previous_hash),
-                               ('index', block.index),
-                               ('proof', block.proof),
-                               ('transactions',
-                                [Od([('sender', tx.sender),
-                                     ('recipient', tx.recipient),
-                                     ('amount', tx.amount),
-                                     ('timestamp', tx.timestamp),
-                                     ('signature', tx.signature)])
-                                 for tx in block.transactions]),
-                               ('timestamp', block.timestamp)]) for block in chain_to_save.chain]
-        dict_transactions = [Od([('sender', tx.sender),
-                                 ('recipient', tx.recipient),
-                                 ('amount', tx.amount),
-                                 ('timestamp', tx.timestamp),
-                                 ('signature', tx.signature)])
-                             for tx in chain_to_save.open_transactions]
-        return dict_blockchain, dict_transactions, chain_to_save.nodes
+        return self.chain_blocks, self.chain_open_transactions, self.chain_connected_nodes
 
     def generate_random_id(self):
         connected_nodes = self.__blockchain.nodes

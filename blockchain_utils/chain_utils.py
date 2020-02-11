@@ -33,7 +33,7 @@ def load_blockchain(resources_path):
     """
     Method to load all the data from the chain when the program initiates.
     :param resources_path: The path
-    :return the loaded blockchain
+    :return the loaded chain_blocks
     """
     # TODO Remove use of Block and Transaction classes
     blockchain_path = f'{resources_path}blockchain_data.txt'

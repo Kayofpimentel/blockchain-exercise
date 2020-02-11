@@ -24,7 +24,7 @@ import json
 #     """
 #     Method to load all the data from the chain when the program initiates.
 #     :param resources_path: The path
-#     :return the loaded blockchain
+#     :return the loaded chain_blocks
 #     """
 #     path = resources_path if resources_path is not None else '../resources/'
 #     nodes_path = f'{path}network_nodes.txt'

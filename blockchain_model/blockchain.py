@@ -3,7 +3,6 @@ import binascii
 import copy as cp
 import hashlib as hl
 import functools as ft
-from collections import OrderedDict as Od
 
 from Cryptodome.Hash import SHA256
 from Cryptodome.PublicKey import RSA
@@ -14,58 +13,23 @@ from blockchain_model.transaction import Transaction as Tx
 
 __DEFAULT_SENDER = 'SYSTEM'
 __DEFAULT_SIGNATURE = 'MINING'
-__DEFAULT_PRIZE = 50
 __HASH_VALIDATION = '00'
 
 
-def start_new_chain(transaction_info):
-    """
-    Method that starts a chain with a zero Block.
-    :return:
-    """
-    first_transaction = Tx(*transaction_info[0])
-    return [Block(previous_hash='', index=0, transactions=[first_transaction], proof=0, time=0)]
-
-
-def create_first_transaction():
-    """
-    Method that starts a chain with a zero Block.
-    :return:
-    """
-    first_transaction = Tx(tx_recipient=__DEFAULT_SENDER, tx_sender=__DEFAULT_SENDER,
-                           tx_amount=0, tx_signature='ZERO')
-    return first_transaction
-
-
-def create_new_transaction(tx_recipient, tx_amount,
+def create_new_transaction(tx_recipient=__DEFAULT_SENDER, tx_amount=0,
                            tx_sender=__DEFAULT_SENDER, tx_signature=__DEFAULT_SIGNATURE, tx_time=None):
     new_transaction = Tx(tx_sender, tx_recipient, tx_amount, tx_signature, tx_time)
     return new_transaction
 
 
-def hash_block(block=None):
+def hash_block(block):
     """Hashes a block and returns a string representation of it.
 
     :param block: The block to be hashed
     :return: Hashed string if the block is not None else None
     """
 
-    if block is not None:
-        dict_block = Od([('previous_hash', block.previous_hash),
-                         ('index', block.index),
-                         ('proof', block.proof),
-                         ('transactions',
-                          [Od([('sender', tx.sender),
-                               ('recipient', tx.recipient),
-                               ('signature', tx.signature),
-                               ('amount', tx.amount),
-                               ('timestamp', tx.timestamp)])
-                           for tx in block.transactions]),
-                         ('timestamp', block.timestamp)])
-        the_block_hash = f'{dict_block}'
-        return hl.sha3_256(json.dumps(the_block_hash).encode()).hexdigest()
-    else:
-        return None
+    return hl.sha3_256(json.dumps(f'{block}').encode()).hexdigest()
 
 
 def verify_transaction(transaction):
@@ -108,18 +72,15 @@ class Blockchain:
     def __init__(self, chain=None, open_txs=None, nodes=None, mining_reward=10):
         # TODO Improve first block check and creation
         # TODO Remove real user from first transaction
-        # TODO Account for the total number of users registered on the blockchain
+        # TODO Account for the total number of users registered on the chain_blocks
         # TODO Implement new user reward
         # TODO Implement decrease of reward with registered number of users
-        self.__chain = chain if chain is not None else create_first_transaction()
-        if chain:
-            self.__chain = chain
-        else:
-            self.__chain = start_new_chain(chain) if chain is not None else []
+        # TODO Secure chain operations just inside Blockchain Class, returning just copies.
         self.__chain = chain if chain is not None else []
         self.__open_transactions = open_txs if open_txs is not None else []
         self.__nodes = set() if nodes is None else set(nodes)
         self.__MINING_REWARD = mining_reward
+        self.__DEFAULT_PRIZE = 50
 
     @property
     def chain(self):
@@ -193,7 +154,7 @@ class Blockchain:
 
     def add_node(self, node_id):
         """
-        Method to add a node connected to this blockchain.
+        Method to add a node connected to this chain_blocks.
         :param node_id:
         :return: :return: If the node was added or not.
         """
@@ -204,7 +165,7 @@ class Blockchain:
 
     def remove_node(self, node_id):
         """
-        Method to remove a node connected to this blockchain.
+        Method to remove a node connected to this chain_blocks.
         :param node_id:
         :return: If the node was removed or not.
         """
@@ -220,3 +181,12 @@ class Blockchain:
         :return: If the node is or not in being used.
         """
         return node_id in self.__nodes
+
+    def start_new_chain(self, new_user):
+        """
+        Method that starts a chain with a zero Block.
+        :return:
+        """
+        first_transactions = [create_new_transaction(), create_new_transaction(tx_recipient=new_user,
+                                                                               tx_amount=self.__DEFAULT_PRIZE)]
+        self.__chain.append(Block(previous_hash='', index=0, transactions=first_transactions, proof=0, time=0))

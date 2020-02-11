@@ -17,7 +17,7 @@ class NodeCommandView(NodeView):
     def __init__(self):
         super().__init__()
 
-    def run(self):
+    def run_node(self):
         # User options to interact with the Node
         if not self.node_connection.node_security():
             print('The loaded chain is corrupted!')
@@ -42,10 +42,10 @@ class NodeCommandView(NodeView):
                 self.node_connection.ask_mine_block()
 
             elif user_choice == '3':
-                self.node_connection.output_console_blockchain()
+                self.node_connection.console_format_blockchain()
 
             elif user_choice == '4':
-                print(f'Your balance is: {self.node_connection.user_balance():^8.2f}')
+                print(f'Your balance is: {self.node_connection.balance:^8.2f}')
 
             elif user_choice == '5':
                 # TODO Offer to create a Wallet if it does not exist already.
@@ -62,6 +62,7 @@ class NodeCommandView(NodeView):
             else:
                 print('Invalid option, select a value from the list.')
             if not self.node_connection.node_security():
+                self.node_connection.remove_node()
                 print('The chain is not safe. Operations lost.')
                 return False
 

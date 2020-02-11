@@ -210,7 +210,7 @@
     new Vue({
       el: '#app',
       data: {
-        blockchain: [],
+        chain_blocks: [],
         openTransactions: [],
         user: null,
         view: 'chain',
@@ -228,35 +228,43 @@
       },
       computed: {
         loadedData: function() {
+          if (this.funds === 0){
+            this.walletLoading = true;
+            var vm = this
+            axios.get('/user')
+              .then(function(response) {
+                vm.user = {
+                  public_key: response.data.public_key
+                }
+                vm.error = null;
+                vm.funds = response.data.balance;
+                vm.success = 'Wallet loaded. The balance for the public key ' +
+                  response.data.public_key + ' is ' + response.data.balance + '.';
+                vm.walletLoading = false;
+              }).catch(function(error) {
+                console.log(error)
+                vm.walletLoading = false;
+                vm.success = null;
+                vm.error = error.response.data.message + ' ' + error.response.data.error;
+              })
+          }
           if (this.view === 'chain') {
-            return this.blockchain;
+            return this.chain_blocks;
           } else {
             return this.openTransactions
           }
+
         }
       },
       methods: {
         onCreateWallet: function() {
-          // Send Http request to create a new user (and return keys)
-          var vm = this;
-          vm.walletLoading = true;
-          axios.post('/user')
-            .then(function(response) {
-              vm.user = {
-                public_key: response.data.public_key
-              }
-              vm.error = null;
-              vm.funds = response.data.balance;
-              vm.success = 'Wallet created. The balance for the public key ' +
-                response.data.public_key + ' is ' + response.data.balance + '.';
-              vm.walletLoading = false;
-            });
+          // // TODO: Ask if user wants to create a new wallet.
         },
         onLoadWallet: function() {
           // Send Http request to load an existing user (from a file on the server)
           var vm = this;
           vm.walletLoading = true;
-          axios.put('/user')
+          axios.get('/user')
             .then(function(response) {
               vm.user = {
                 public_key: response.data.public_key
@@ -266,7 +274,12 @@
               vm.success = 'Wallet created. The balance for the public key ' +
                 response.data.public_key + ' is ' + response.data.balance + '.';
               vm.walletLoading = false;
-            });
+            }).catch(function(error) {
+              console.log(error)
+              vm.walletLoading = false;
+              vm.success = null;
+              vm.error = error.response.data.message + ' ' + error.response.data.error;
+            })
         },
         onSendTx: function() {
           // Send Transaction to backend
@@ -309,11 +322,11 @@
           var vm = this;
           vm.dataLoading = true;
           if (this.view === 'chain') {
-            //Load blockchain data
+            //Load chain_blocks data
             axios.get('/chain')
               .then(function(response) {
                 console.log(response.data.chain)
-                vm.blockchain = response.data.chain
+                vm.chain_blocks = response.data.chain
               })
               .catch(function(response) {
                 vm.error = response.data.error
