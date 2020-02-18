@@ -12,14 +12,14 @@ def save_blockchain(*blockchain, resources_path=None):
     """
     path = resources_path if resources_path is not None else './resources/'
     blockchain_path = f'{path}blockchain_data.txt'
-    dict_blockchain, dict_transactions, nodes = blockchain
+    dict_blockchain, dict_transactions = blockchain
     try:
         with open(blockchain_path, mode='w') as blockchain_file:
             blockchain_file.write(json.dumps(dict_blockchain))
             blockchain_file.write('\n')
             blockchain_file.write(json.dumps(dict_transactions))
-            blockchain_file.write('\n')
-            blockchain_file.write(json.dumps(nodes))
+            # blockchain_file.write('\n')
+            # blockchain_file.write(json.dumps(nodes))
             # data_to_save = {'chain': self.chain, 'ot': self.open_transactions}
             # with open(filename, mode='wb') as blockchain_file:
             #     blockchain_file.write(pickle.dumps(data_to_save))
@@ -55,15 +55,14 @@ def load_blockchain(resources_path):
                                time=loaded_block['timestamp']
                                ) for loaded_block in loaded_chain]
 
-            loaded_transactions = json.loads(blockchain_info[1][:-1])
+            loaded_transactions = json.loads(blockchain_info[1])
             new_transactions = [Transaction(tx_sender=open_tx['sender'],
                                             tx_recipient=open_tx['recipient'],
                                             tx_signature=open_tx['signature'],
                                             tx_amount=open_tx['amount'],
                                             tx_time=open_tx['timestamp'])
                                 for open_tx in loaded_transactions]
-            new_nodes = json.loads(blockchain_info[2])
-        return new_chain, new_transactions, new_nodes
+        return new_chain, new_transactions
 
     except (IOError, IndexError):
         return None

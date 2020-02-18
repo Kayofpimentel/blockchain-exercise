@@ -12,6 +12,7 @@ def show_choices():
 
 
 # TODO Improve handling of error messages
+# TODO Create a command view that sends HTTP requests instead of file saving
 class NodeCommandView(NodeView):
 
     def __init__(self):

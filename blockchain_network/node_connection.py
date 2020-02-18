@@ -1,13 +1,23 @@
 import os
+import copy as cp
+from random import randint
 
 from blockchain_model.node import Node
 from blockchain_model.wallet import Wallet
 from blockchain_utils import chain_utils as cu
 from blockchain_utils import wallet_utils as wu
-
-# from blockchain_utils import node_utils as nu
+from blockchain_utils import node_utils as nu
+from blockchain_network import node_sync as ns
 
 _max_usr = 2
+
+
+def generate_random_id(self):
+    connected_nodes = self.__blockchain.nodes
+    min_port = 5000
+    max_port = 9999
+    random_id = randint(min_port, max_port)
+    return random_id if random_id not in connected_nodes else self.generate_random_id()
 
 
 # TODO Break class to separate IO from Model
@@ -22,6 +32,7 @@ class NodeConnection:
             self.__wallet = None
             self.config = {}
             self.__node = None
+            self.__connected_nodes = set()
 
     @property
     def user(self):
@@ -41,8 +52,12 @@ class NodeConnection:
         return self.__node.chain_blocks
 
     @property
-    def nodes(self):
-        return self.__node.chain_connected_nodes
+    def node(self):
+        return self.__node.node_id
+
+    @property
+    def connected_nodes(self):
+        return cp.copy(self.__connected_nodes)
 
     @property
     def balance(self):
@@ -61,12 +76,21 @@ class NodeConnection:
         Method that start the node and loads the chain_blocks.
         :return: If the node was added or not.
         """
-        new_chain_info = cu.load_blockchain(self.config["dir"])
-        self.__node = Node(node_id=self.config["port"], chain_info=new_chain_info)
-        if new_chain_info is None:
-            self.__node.new_chain(self.user)
-            cu.save_blockchain(*self.__node.chain_prep_to_save())
-
+        running_nodes = nu.load_nodes(self.config["dir"])
+        new_node_id = self.config.pop("port")
+        if new_node_id not in running_nodes:
+            new_chain_info = cu.load_blockchain(self.config["dir"])
+            self.__node = Node(chain_info=new_chain_info, node_id=new_node_id)
+            if new_chain_info is None:
+                self.__node.new_chain(self.user)
+                cu.save_blockchain(*self.__node.chain_prep_to_save())
+            self.add_node(nu.load_nodes(self.config["dir"]))
+            nodes_to_save = self.connected_nodes
+            nodes_to_save.add(new_node_id)
+            nu.update_nodes(nodes_to_save, resources_path=self.config["dir"])
+            print(self.connected_nodes)
+        else:
+            raise Exception(f'The node {self.config["dir"]} is already running.')
 
     def connect_wallet(self):
         """
@@ -91,7 +115,7 @@ class NodeConnection:
         :param config_info:
         :return:
         """
-        self.config = config_info
+        self.config.update(config_info)
         self.connect_wallet()
         self.connect_node()
 
@@ -101,7 +125,9 @@ class NodeConnection:
             tx_recipient = wu.load_keys(f'{self.config["dir"]}{recipient}.txt')[1]
             if tx_signature is None:
                 tx_signature = self.__wallet.sign_transaction(tx_recipient, tx_amount)
-            return self.__node.receive_transaction(tx_sender, tx_recipient, tx_amount, tx_signature)
+            if self.__node.receive_transaction(tx_sender, tx_recipient, tx_amount, tx_signature):
+                return ns.broadcast_transaction(sender=tx_sender, recipient=tx_recipient,
+                                                amount=tx_amount, signature=tx_signature, nodes=self.connected_nodes)
         else:
             print('Not enough funds to make transaction.')
             return False
@@ -120,11 +146,42 @@ class NodeConnection:
     def node_security(self):
         return self.__node.verify_chain_is_safe()
 
-    def remove_node(self, ):
-        return self.__node.disconnect()
+    def add_peer_node(self, nodes):
+        self.add_node(nodes)
+        return True
+
+    def add_node(self, node_id):
+        """
+        Method to add a node connected to this chain_blocks.
+        :param node_id:
+        :return: :return: If the node was added or not.
+        """
+        if not self.check_node(node_id):
+            self.__connected_nodes.update(node_id)
+            return True
+        return False
+
+    def remove_node(self, node_id):
+        """
+        Method to remove a node connected to this chain_blocks.
+        :param node_id:
+        :return: If the node was removed or not.
+        """
+        if self.check_node(node_id):
+            self.__connected_nodes = self.__connected_nodes - node_id
+            return True
+        return False
+
+    def check_node(self, node_id):
+        """
+        Method to check if node id is already being used.
+        :param node_id:
+        :return: If the node is or not in being used.
+        """
+        return node_id.issubset(self.__connected_nodes)
 
     def disconnect_node(self):
-        self.__node.disconnect_to_chain()
         if self.__node.verify_chain_is_safe():
-            print(*self.__node.chain_prep_to_save())
-            return cu.save_blockchain(*self.__node.chain_prep_to_save())
+            blockchain_info = self.__node.chain_prep_to_save()
+            nu.update_nodes(self.__connected_nodes, self.config["dir"])
+            return cu.save_blockchain(*blockchain_info)

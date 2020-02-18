@@ -1,5 +1,4 @@
 from blockchain_network.node_connection import NodeConnection
-from argparse import ArgumentParser
 
 
 # TODO Improve communication between view and connection(controller) with Command Design Pattern.

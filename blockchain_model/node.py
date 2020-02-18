@@ -1,6 +1,4 @@
-import copy as cp
 import functools as ft
-from random import randint
 from collections import OrderedDict as Od
 
 import blockchain_model.blockchain as bm
@@ -8,10 +6,10 @@ import blockchain_model.blockchain as bm
 
 class Node:
 
+    # TODO More elegant way to pass the set for the add_node method
     def __init__(self, node_id, chain_info=None):
         self.node_id = node_id
         self.__blockchain = bm.Blockchain(*chain_info) if chain_info is not None else bm.Blockchain()
-        self.__blockchain.add_node(self.node_id)
 
     @property
     def chain_blocks(self):
@@ -44,15 +42,11 @@ class Node:
                              for tx in temp_transactions]
         return dict_transactions
 
-    @property
-    def chain_connected_nodes(self):
-        return cp.copy(self.__blockchain.nodes)
-
     def new_chain(self, new_user):
         self.__blockchain.start_new_chain(new_user)
 
-    def receive_transaction(self, tx_sender, tx_recipient, tx_amount, tx_signature):
-        result = self.__blockchain.add_tx(tx_recipient, tx_amount, tx_sender, tx_signature)
+    def receive_transaction(self, *tx_info):
+        result = self.__blockchain.add_tx(tx_info)
         return result
 
     def try_mine_block(self, miner_key):
@@ -60,12 +54,6 @@ class Node:
             print('There are no transactions to mine a block.')
             return False
         return self.__blockchain.mine_block(miner_key)
-
-    def connect_to_chain(self):
-        return self.__blockchain.add_node(self.node_id)
-
-    def disconnect_to_chain(self):
-        return self.__blockchain.remove_node(self.node_id)
 
     def verify_chain_is_safe(self):
         """
@@ -137,11 +125,4 @@ class Node:
         Method to transform a object chain_blocks in ordered dictionaries.
         :return: This node's chain_blocks blocks, transactions that are still open and all the nodes connected to it.
         """
-        return self.chain_blocks, self.chain_open_transactions, self.chain_connected_nodes
-
-    def generate_random_id(self):
-        connected_nodes = self.__blockchain.nodes
-        min_port = 5000
-        max_port = 9999
-        random_id = randint(min_port, max_port)
-        return random_id if random_id not in connected_nodes else self.generate_random_id()
+        return self.chain_blocks, self.chain_open_transactions

@@ -26,7 +26,11 @@ args = vars(parser.parse_args())
 print(args)
 
 try:
-    modes[args['mode']](args)
+    mode = args.pop('mode')
+    modes[mode](args)
+
+except KeyError:
+    print('Undefined argument.')
 
 finally:
     print('Program finished.')

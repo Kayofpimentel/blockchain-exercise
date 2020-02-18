@@ -41,6 +41,7 @@ def verify_transaction(transaction):
     public_key = RSA.importKey(binascii.unhexlify(transaction.sender))
     verifier = CSign.new(public_key)
     tx_hash = SHA256.new(f'{transaction.sender}{transaction.recipient}{transaction.amount}'.encode('utf8'))
+    # noinspection PyTypeChecker
     return verifier.verify(tx_hash, binascii.unhexlify(transaction.signature))
 
 
@@ -69,7 +70,7 @@ def valid_proof(transactions, last_hash, proof):
 
 class Blockchain:
 
-    def __init__(self, chain=None, open_txs=None, nodes=None, mining_reward=10):
+    def __init__(self, chain=None, open_txs=None, mining_reward=10):
         # TODO Improve first block check and creation
         # TODO Remove real user from first transaction
         # TODO Account for the total number of users registered on the chain_blocks
@@ -78,7 +79,6 @@ class Blockchain:
         # TODO Secure chain operations just inside Blockchain Class, returning just copies.
         self.__chain = chain if chain is not None else []
         self.__open_transactions = open_txs if open_txs is not None else []
-        self.__nodes = set() if nodes is None else set(nodes)
         self.__MINING_REWARD = mining_reward
         self.__DEFAULT_PRIZE = 50
 
@@ -91,20 +91,16 @@ class Blockchain:
         return self.__open_transactions
 
     @property
-    def nodes(self):
-        return list(self.__nodes)
-
-    @property
     def reward(self):
         return self.__MINING_REWARD
 
-    def add_tx(self, *new_transaction_info):
+    def add_tx(self, new_transaction_info):
         """
         Append a new value as well as the last chain value to the chain.
         Arguments:
         :param new_transaction_info
         """
-        new_transaction = create_new_transaction(*new_transaction_info)
+        new_transaction = create_new_transaction(new_transaction_info)
         # if result:
         #     for node in self.__blockchain.nodes:
         #         url = f'http://127.0.0.1:{node}/bc-tx'
@@ -151,36 +147,6 @@ class Blockchain:
         self.__chain.append(block_to_mine)
         self.__open_transactions.clear()
         return True
-
-    def add_node(self, node_id):
-        """
-        Method to add a node connected to this chain_blocks.
-        :param node_id:
-        :return: :return: If the node was added or not.
-        """
-        if not self.check_node(node_id):
-            self.__nodes.add(node_id)
-            return True
-        return False
-
-    def remove_node(self, node_id):
-        """
-        Method to remove a node connected to this chain_blocks.
-        :param node_id:
-        :return: If the node was removed or not.
-        """
-        if self.check_node(node_id):
-            self.__nodes.discard(node_id)
-            return True
-        return False
-
-    def check_node(self, node_id):
-        """
-        Method to check if node id is already being used.
-        :param node_id:
-        :return: If the node is or not in being used.
-        """
-        return node_id in self.__nodes
 
     def start_new_chain(self, new_user):
         """

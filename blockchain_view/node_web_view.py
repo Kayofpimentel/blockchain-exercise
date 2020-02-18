@@ -13,7 +13,8 @@ class NodeWebView(NodeView):
 
     def run_node(self):
         print('Node started, application online.')
-        self.__web_app.run(host='127.0.0.1', port=self.node_connection.config['port'])
+        port_to_run = self.node_connection.node
+        self.__web_app.run(host='127.0.0.1', port=port_to_run)
 
     @property
     def web_app(self):
