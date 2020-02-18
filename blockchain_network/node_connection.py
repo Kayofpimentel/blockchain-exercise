@@ -119,15 +119,20 @@ class NodeConnection:
         self.connect_wallet()
         self.connect_node()
 
-    def send_transaction(self, recipient, tx_amount, tx_sender=None, tx_signature=None):
-        tx_sender = self.user if tx_sender is None else tx_sender
-        if self.__node.verify_balance(tx_sender, tx_amount):
-            tx_recipient = wu.load_keys(f'{self.config["dir"]}{recipient}.txt')[1]
-            if tx_signature is None:
-                tx_signature = self.__wallet.sign_transaction(tx_recipient, tx_amount)
-            if self.__node.receive_transaction(tx_sender, tx_recipient, tx_amount, tx_signature):
-                return ns.broadcast_transaction(sender=tx_sender, recipient=tx_recipient,
-                                                amount=tx_amount, signature=tx_signature, nodes=self.connected_nodes)
+    def send_transaction(self, recipient, amount, sender=None, signature=None, nodes_info=None):
+        sender = self.user if sender is None else sender
+        if self.__node.verify_balance(sender, amount):
+
+            if signature is None:
+                tx_recipient = wu.load_keys(f'{self.config["dir"]}{recipient}.txt')[1]
+                signature = self.__wallet.sign_transaction(tx_recipient, amount)
+            else:
+                tx_recipient = recipient
+            if self.__node.receive_transaction(tx_recipient, amount, sender, signature):
+                peer_nodes = self.connected_nodes - nodes_info if nodes_info is not None else self.connected_nodes
+                send_nodes_info = {'self_id': [self.node], 'peer_nodes': list(peer_nodes)}
+                return ns.broadcast_transaction(sender=sender, recipient=tx_recipient,
+                                                amount=amount, signature=signature, nodes_info=send_nodes_info)
         else:
             print('Not enough funds to make transaction.')
             return False

@@ -110,12 +110,15 @@ def new_tx():
 @__node_web.web_app.route('/bc-tx', methods=['POST'])
 def receive_tx():
     tx_info = request.get_json()
+    print(tx_info)
+    tx_info['nodes_info'] = set(tx_info['nodes_info']['self_id']) | \
+                            set(tx_info['nodes_info']['peer_nodes'])
     response = {}
     status = 400
-    required_info = ['sender', 'recipient', 'amount', 'signature']
-    request_problem = data_check(required_info, required_info)
+    required_info = ['sender', 'recipient', 'amount', 'signature', 'nodes_info']
+    request_problem = data_check(required_info, tx_info)
     if request_problem is None:
-        if __node_web.node_connection.send_transaction(*tx_info):
+        if __node_web.node_connection.send_transaction(**tx_info):
             response['message'] = 'Transaction added.'
             status = 200
     else:

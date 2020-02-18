@@ -100,7 +100,7 @@ class Blockchain:
         Arguments:
         :param new_transaction_info
         """
-        new_transaction = create_new_transaction(new_transaction_info)
+        new_transaction = create_new_transaction(*new_transaction_info)
         # if result:
         #     for node in self.__blockchain.nodes:
         #         url = f'http://127.0.0.1:{node}/bc-tx'
