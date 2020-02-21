@@ -16,16 +16,19 @@ class NodeView:
         return self.run_node()
 
     def create_transaction(self, recipient_name, tx_amount):
-        if self.node_connection.send_transaction(recipient_name, tx_amount):
-            print('Added transaction.')
-        else:
-            print('Transaction failed.')
+        self.node_connection.send_transaction(recipient_name, tx_amount)
+
+    def mine_block(self):
+        return self.node_connection.node_mine_block()
 
     def change_wallet(self, user):
         self.node_connection.user = user
 
     def run_node(self):
-        pass
+        raise NotImplementedError
+
+    def get_blocks(self):
+        return self.node_connection.blockchain
 
     def quit_node(self):
         return self.node_connection.disconnect_node()

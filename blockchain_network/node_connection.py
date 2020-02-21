@@ -7,7 +7,7 @@ from blockchain_model.wallet import Wallet
 from blockchain_utils import chain_utils as cu
 from blockchain_utils import wallet_utils as wu
 from blockchain_utils import node_utils as nu
-from blockchain_network import node_sync as ns
+from blockchain_network import chain_sync as cs
 
 _max_usr = 2
 
@@ -22,15 +22,19 @@ def generate_random_id(self):
 
 # TODO Break class to separate IO from Model
 # TODO Create a public property getter for all config values and make config private
+# TODO Use the Observer Pattern to improve node communication.
+# TODO Improve log/response messages and errors for each operation.
+# TODO Integrate node_connection.py with node_view.py and node.py
+# TODO Allow the user to login with alias or create new wallet
 class NodeConnection:
 
     def __init__(self, config_info=None):
 
+        self.config = {'reward': 0}
         if config_info is not None:
             self.start_connection(config_info)
         else:
             self.__wallet = None
-            self.config = {}
             self.__node = None
             self.__connected_nodes = set()
 
@@ -45,11 +49,11 @@ class NodeConnection:
 
     @property
     def open_transactions(self):
-        return self.__node.chain_open_transactions
+        return self.__node.chain_to_info['txs']
 
     @property
     def blockchain(self):
-        return self.__node.chain_blocks
+        return self.__node.chain_to_info['blocks']
 
     @property
     def node(self):
@@ -65,7 +69,7 @@ class NodeConnection:
         Method to recover the user balance.
         :return:
         """
-        return self.__node.get_balance(self.user)
+        return self.__node.user_balance(self.user)
 
     @property
     def reward(self):
@@ -76,21 +80,13 @@ class NodeConnection:
         Method that start the node and loads the chain_blocks.
         :return: If the node was added or not.
         """
-        running_nodes = nu.load_nodes(self.config["dir"])
-        new_node_id = self.config.pop("port")
-        if new_node_id not in running_nodes:
-            new_chain_info = cu.load_blockchain(self.config["dir"])
-            self.__node = Node(chain_info=new_chain_info, node_id=new_node_id)
-            if new_chain_info is None:
-                self.__node.new_chain(self.user)
-                cu.save_blockchain(*self.__node.chain_prep_to_save())
-            self.add_node(nu.load_nodes(self.config["dir"]))
-            nodes_to_save = self.connected_nodes
-            nodes_to_save.add(new_node_id)
-            nu.update_nodes(nodes_to_save, resources_path=self.config["dir"])
-            print(self.connected_nodes)
-        else:
-            raise Exception(f'The node {self.config["dir"]} is already running.')
+        new_node_id = self.config.pop('port')
+        new_chain_info = cu.load_blockchain(self.config['dir'])
+        self.__node = Node(chain_info=new_chain_info, node_id=new_node_id)
+        self.config['reward'] = self.__node.mining_reward
+        if new_chain_info is None:
+            self.__node.new_chain(self.user)
+            cu.save_blockchain(**self.__node.chain_to_info)
 
     def connect_wallet(self):
         """
@@ -129,21 +125,35 @@ class NodeConnection:
             else:
                 tx_recipient = recipient
             if self.__node.receive_transaction(tx_recipient, amount, sender, signature):
-                peer_nodes = self.connected_nodes - nodes_info if nodes_info is not None else self.connected_nodes
-                send_nodes_info = {'self_id': [self.node], 'peer_nodes': list(peer_nodes)}
-                return ns.broadcast_transaction(sender=sender, recipient=tx_recipient,
-                                                amount=amount, signature=signature, nodes_info=send_nodes_info)
+                send_nodes_info = self.prepare_nodes(nodes_info)
+                if cs.broadcast_transaction(sender=sender, recipient=tx_recipient,
+                                                amount=amount, signature=signature, nodes_info=send_nodes_info):
+                    return 201
+                else:
+                    return 202
         else:
-            print('Not enough funds to make transaction.')
-            return False
+            return 409
 
-    def ask_mine_block(self):
+    def send_block(self, block, nodes_info):
+        if self.__node.receive_block(block):
+            send_nodes_info = self.prepare_nodes(nodes_info)
+            if cs.broadcast_chain(block=block, nodes_info=send_nodes_info):
+                return 201
+            else:
+                return 202
+        else:
+            return 409
 
-        if self.__node.try_mine_block(self.user):
-            print(f'A new block was mined. {self.__node.mining_reward} added to your balance.')
-            return True
-        print('There was a problem mining the block. Operation lost.')
-        return False
+    def node_mine_block(self, nodes_info=None):
+        mined_block = self.__node.try_mine_block(self.user)
+        if mined_block is not None:
+            send_nodes_info = self.prepare_nodes(nodes_info)
+            if cs.broadcast_chain(block=mined_block, nodes_info=send_nodes_info):
+                return 201
+            else:
+                return 202
+        else:
+            return 409
 
     def console_format_blockchain(self):
         return self.__node.output_blockchain()
@@ -185,8 +195,20 @@ class NodeConnection:
         """
         return node_id.issubset(self.__connected_nodes)
 
+    # TODO
+    def sync_node(self, sync_nodes, sync_chain, sync_op):
+        pass
+
+    def sync_mining(self, block):
+        return self.__node.compare_chains(block)
+
+    def prepare_nodes(self, received_nodes):
+        peer_nodes = self.connected_nodes - received_nodes if received_nodes is not None else self.connected_nodes
+        sent_nodes = self.connected_nodes | received_nodes \
+            if received_nodes is not None else self.connected_nodes | {self.__node.node_id}
+        prepared_nodes = {'sent_nodes': list(sent_nodes), 'peer_nodes': list(peer_nodes)}
+        return prepared_nodes
+
     def disconnect_node(self):
         if self.__node.verify_chain_is_safe():
-            blockchain_info = self.__node.chain_prep_to_save()
-            nu.update_nodes(self.__connected_nodes, self.config["dir"])
-            return cu.save_blockchain(*blockchain_info)
+            return cu.save_blockchain(**self.__node.chain_to_info)

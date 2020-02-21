@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from blockchain_view.node_command_view import NodeCommandView
+from blockchain_view.node_terminal_view import NodeCommandView
 from blockchain_network import node_http_requests as nhr
 
 new_node_view = None

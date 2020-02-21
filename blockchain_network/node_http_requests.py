@@ -34,7 +34,7 @@ def get_network_ui():
 @__node_web.web_app.route('/chain', methods=['GET'])
 def get_chain():
     global __node_web
-    status = 500
+    status = 400
     response = {}
     dict_chain = __node_web.node_connection.blockchain
     if dict_chain is not None:
@@ -63,18 +63,37 @@ def get_balance():
     return f'{__node_web.node_connection.balance}'
 
 
+@__node_web.web_app.route('/user', methods=['GET'])
+def load_wallet():
+    response = {'message': 'Wallet changed.', 'balance': f'{__node_web.node_connection.balance}',
+                'public_key': f'{__node_web.node_connection.user}'}
+    status = 200
+    return jsonify(response), status
+
+
+@__node_web.web_app.route('/node', methods=['GET'])
+def get_nodes():
+    status = 400
+    response = {}
+    nodes = list(__node_web.node_connection.connected_nodes)
+    if nodes is not None:
+        response['message'] = 'These are all the present nodes.'
+        response['nodes'] = nodes
+        status = 200
+    return jsonify(response), status
+
+
 @__node_web.web_app.route('/mine', methods=['POST'])
 def mine():
     response = {}
-    status = 500
-    if __node_web.node_connection.ask_mine_block():
-        blockchain = __node_web.node_connection.blockchain
+    status = __node_web.mine_block()
+    if status/300 < 1:
+        blockchain = __node_web.get_blocks()
         response['message'] = 'Mining operation was successful.'
         response['block'] = f'This was the block added: \n{blockchain[-1]}'
-        response['mining_reward'] = f'{__node_web.node_connection.blockchain}'
+        response['mining_reward'] = f'{__node_web.node_connection.reward}'
         response['balance'] = f'{__node_web.node_connection.balance}'
-        status = 200
-    else:
+    elif status == 409:
         response['message'] = 'Error mining a new block.'
         response['error'] = 'There is no block to mine.'
     return jsonify(response), status
@@ -94,14 +113,14 @@ def new_tx():
             response['error'] = 'The recipient does not exist.'
         else:
             tx_amount = request_info['amount']
-            if not __node_web.node_connection.send_transaction(tx_recipient, tx_amount):
+            status = __node_web.node_connection.send_transaction(tx_recipient, tx_amount)
+            if status == 409:
                 response['message'] = 'Error adding transaction.'
                 response['error'] = 'There is no funds for this transaction.'
             else:
                 response['message'] = 'Transaction added.'
                 response['transaction'] = __node_web.node_connection.open_transactions[-1]
                 response['balance'] = f'{__node_web.node_connection.balance}'
-                status = 200
     else:
         response.update(request_problem)
     return jsonify(response), status
@@ -110,28 +129,52 @@ def new_tx():
 @__node_web.web_app.route('/bc-tx', methods=['POST'])
 def receive_tx():
     tx_info = request.get_json()
-    print(tx_info)
-    tx_info['nodes_info'] = set(tx_info['nodes_info']['self_id']) | \
+    tx_info['nodes_info'] = set(tx_info['nodes_info']['sent_nodes']) | \
                             set(tx_info['nodes_info']['peer_nodes'])
     response = {}
     status = 400
     required_info = ['sender', 'recipient', 'amount', 'signature', 'nodes_info']
     request_problem = data_check(required_info, tx_info)
     if request_problem is None:
-        if __node_web.node_connection.send_transaction(**tx_info):
-            response['message'] = 'Transaction added.'
-            status = 200
+        status = __node_web.node_connection.send_transaction(**tx_info)
+        response['message'] = 'Transaction added.'
     else:
         response.update(request_problem)
     return jsonify(response), status
 
 
-@__node_web.web_app.route('/user', methods=['GET'])
-def load_wallet():
-    response = {'message': 'Wallet changed.', 'balance': f'{__node_web.node_connection.balance}',
-                'public_key': f'{__node_web.node_connection.user}'}
-    status = 200
+@__node_web.web_app.route('/bc-block', methods=['POST'])
+def receive_block():
+    block_info = request.get_json()
+    block_info['nodes_info'] = set(block_info['nodes_info']['sent_nodes']) | set(block_info['nodes_info']['peer_nodes'])
+    response = {}
+    status = 400
+    required_info = ['block', 'nodes_info']
+    request_problem = data_check(required_info, block_info)
+    if request_problem is None:
+        status = __node_web.node_connection.send_block(**block_info)
+        response['message'] = 'Block added.'
+    else:
+        response.update(request_problem)
     return jsonify(response), status
+
+# @__node_web.web_app.route('/bc-chain', methods=['POST'])
+# def receive_chain():
+#     chain_info = request.get_json()
+#     chain_info['nodes_info'] = set(chain_info['nodes_info']['sent_nodes']) | \
+#                             set(chain_info['nodes_info']['peer_nodes'])
+#     response = {}
+#     status = 400
+#     required_info = ['chain', 'open_transactions', 'nodes_info']
+#     request_problem = data_check(required_info, chain_info)
+#     if request_problem is None:
+#         status = __node_web.node_connection.send_transaction(**chain_info)
+#
+#         response['message'] = 'Transaction added.'
+#     else:
+#         response.update(request_problem)
+#     return jsonify(response), status
+#     pass
 
 
 @__node_web.web_app.route('/user', methods=['POST'])
@@ -189,18 +232,6 @@ def delete_nodes(node_id):
             response['error'] = 'There was a problem with the node.'
     else:
         response.update({'message': 'Error removing node.', 'error': 'No node id was sent.'})
-    return jsonify(response), status
-
-
-@__node_web.web_app.route('/node', methods=['GET'])
-def get_nodes():
-    status = 400
-    response = {}
-    nodes = list(__node_web.node_connection.connected_nodes)
-    if nodes is not None:
-        response['message'] = 'These are all the present nodes.'
-        response['nodes'] = nodes
-        status = 200
     return jsonify(response), status
 
 

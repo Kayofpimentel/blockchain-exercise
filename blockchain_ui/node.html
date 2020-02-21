@@ -315,7 +315,7 @@
             .catch(function(error) {
               console.log(error)
               vm.success = null;
-              vm.error = error.response.data.message + "<br>" + error.response.data.error;
+              vm.error = error.response.data.message + " " + error.response.data.error;
             })
         },
         onLoadData: function() {

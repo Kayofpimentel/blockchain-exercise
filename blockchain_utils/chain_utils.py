@@ -3,21 +3,21 @@ from blockchain_model.block import Block
 from blockchain_model.transaction import Transaction
 
 
-def save_blockchain(*blockchain, resources_path=None):
+def save_blockchain(blocks, txs, resources_path=None):
     """
     Method to save the data from recent transactions, mined blocks and connected nodes.
+    :param txs:
+    :param blocks:
     :param resources_path:
-    :param blockchain:
     :return if the operation was successful:
     """
     path = resources_path if resources_path is not None else './resources/'
     blockchain_path = f'{path}blockchain_data.txt'
-    dict_blockchain, dict_transactions = blockchain
     try:
         with open(blockchain_path, mode='w') as blockchain_file:
-            blockchain_file.write(json.dumps(dict_blockchain))
+            blockchain_file.write(json.dumps(blocks))
             blockchain_file.write('\n')
-            blockchain_file.write(json.dumps(dict_transactions))
+            blockchain_file.write(json.dumps(txs))
             # blockchain_file.write('\n')
             # blockchain_file.write(json.dumps(nodes))
             # data_to_save = {'chain': self.chain, 'ot': self.open_transactions}
@@ -42,27 +42,8 @@ def load_blockchain(resources_path):
 
             blockchain_info = blockchain_file.readlines()
             loaded_chain = json.loads(blockchain_info[0][:-1])
-            new_chain = [Block(previous_hash=loaded_block['previous_hash'],
-                               index=loaded_block['index'],
-                               proof=loaded_block['proof'],
-                               transactions=[Transaction(tx_sender=tx['sender'],
-                                                         tx_recipient=tx['recipient'],
-                                                         tx_signature=tx['signature'],
-                                                         tx_amount=tx['amount'],
-                                                         tx_time=tx['timestamp'])
-                                             for tx in loaded_block['transactions'] if
-                                             loaded_block['transactions']],
-                               time=loaded_block['timestamp']
-                               ) for loaded_block in loaded_chain]
-
             loaded_transactions = json.loads(blockchain_info[1])
-            new_transactions = [Transaction(tx_sender=open_tx['sender'],
-                                            tx_recipient=open_tx['recipient'],
-                                            tx_signature=open_tx['signature'],
-                                            tx_amount=open_tx['amount'],
-                                            tx_time=open_tx['timestamp'])
-                                for open_tx in loaded_transactions]
-        return new_chain, new_transactions
+        return loaded_chain, loaded_transactions
 
     except (IOError, IndexError):
         return None

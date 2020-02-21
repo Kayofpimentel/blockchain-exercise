@@ -40,7 +40,7 @@ class NodeCommandView(NodeView):
                     self.create_transaction(recipient_name, tx_amount)
 
             elif user_choice == '2':
-                self.node_connection.ask_mine_block()
+                self.node_connection.node_mine_block()
 
             elif user_choice == '3':
                 self.node_connection.console_format_blockchain()
