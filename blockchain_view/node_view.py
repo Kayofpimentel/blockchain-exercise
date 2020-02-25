@@ -15,9 +15,6 @@ class NodeView:
         self.__node_connection.start_connection(config_info)
         return self.run_node()
 
-    def create_transaction(self, recipient_name, tx_amount):
-        self.node_connection.send_transaction(recipient_name, tx_amount)
-
     def mine_block(self):
         return self.node_connection.node_mine_block()
 

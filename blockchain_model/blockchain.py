@@ -55,27 +55,30 @@ class Blockchain:
         self.__open_transactions.append(new_transaction)
         return True
 
-    def add_block(self, new_block_info):
+    def add_block(self, block_to_add):
         """
         TODO
-        :param new_block_info:
+        :param block_to_add:
         :return:
         """
         try:
-            block_to_add, _ = self.info_to_chain(blocks=new_block_info, txs=None)
             block_to_add = block_to_add[0]
-            hashes_match = self.hash_block(self.__chain[-1]) == block_to_add.previous_hash
-            is_valid = self.valid_proof(block_to_add.transactions, block_to_add.previous_hash, block_to_add.proof)
-            if not (is_valid or hashes_match):
-                return None
+            if block_to_add.index < self.__chain[-1].index:
+                return {'error': 'Block is not updated.', 'action': 'Block was not added.', 'status': 409}
+            elif block_to_add.index == self.__chain[-1].index + 1:
+                hashes_match = self.hash_block(self.__chain[-1]) == block_to_add.previous_hash
+                is_valid = self.valid_proof(block_to_add.transactions, block_to_add.previous_hash, block_to_add.proof)
+                if not (is_valid or hashes_match):
+                    return {'error': 'Block is invalid.', 'action': 'Block was not added.', 'status': 409}
+                else:
+                    self.__chain.append(block_to_add)
+                    self.__open_transactions.clear()
+                    return {'message': 'Block accepted.', 'action': 'Block added.',
+                            'status': 201, 'block': block_to_add}
             else:
-                self.__chain.append(block_to_add)
-                self.__open_transactions.clear()
-                return block_to_add
+                return {'message': 'Chain is too short', 'action': 'Update chain.', 'status': 202}
         except IndexError:
-            print(f'The blockchain has no blocks to compare.')
-            self.start_new_chain(None)
-            return None
+            return {'error': 'The blockchain has no blocks to compare.', 'action': 'Update chain.', 'status': 202}
 
     def mine_block(self, miner_key):
         """
@@ -93,7 +96,7 @@ class Blockchain:
                 del self.__open_transactions[count]
                 block_status = False
         if not block_status:
-            return False
+            return None
         # Add the reward transaction for the mining operation
         reward_transaction = self.create_new_transaction(tx_recipient=miner_key, tx_amount=self.reward)
         temp_transactions.append(reward_transaction)
@@ -102,8 +105,11 @@ class Blockchain:
                               proof=proof)
         self.__chain.append(block_to_mine)
         self.__open_transactions.clear()
-        mined_block_info, _ = self.chain_to_info(blocks=[block_to_mine])
-        return mined_block_info
+        return block_to_mine
+
+    def reset_chain(self, blocks):
+        self.__chain = cp.deepcopy(blocks)
+        self.__open_transactions.clear()
 
     def start_new_chain(self, new_user):
         """

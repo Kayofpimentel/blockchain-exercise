@@ -6,7 +6,6 @@ from blockchain_model.node import Node
 from blockchain_model.wallet import Wallet
 from blockchain_utils import chain_utils as cu
 from blockchain_utils import wallet_utils as wu
-from blockchain_utils import node_utils as nu
 from blockchain_network import chain_sync as cs
 
 _max_usr = 2
@@ -30,13 +29,13 @@ class NodeConnection:
 
     def __init__(self, config_info=None):
 
+        self.__wallet = None
+        self.__node = None
+        self.__connected_nodes = set()
+
         self.config = {'reward': 0}
         if config_info is not None:
             self.start_connection(config_info)
-        else:
-            self.__wallet = None
-            self.__node = None
-            self.__connected_nodes = set()
 
     @property
     def user(self):
@@ -49,15 +48,15 @@ class NodeConnection:
 
     @property
     def open_transactions(self):
-        return self.__node.chain_to_info['txs']
+        return self.__node.blockchain_info['txs']
 
     @property
     def blockchain(self):
-        return self.__node.chain_to_info['blocks']
+        return self.__node.blockchain_info['blocks']
 
     @property
     def node(self):
-        return self.__node.node_id
+        return cp.copy(self.__node.node_id)
 
     @property
     def connected_nodes(self):
@@ -73,6 +72,10 @@ class NodeConnection:
 
     @property
     def reward(self):
+        """
+
+        :return:
+        """
         return self.__node.mining_reward
 
     def connect_node(self):
@@ -86,7 +89,7 @@ class NodeConnection:
         self.config['reward'] = self.__node.mining_reward
         if new_chain_info is None:
             self.__node.new_chain(self.user)
-            cu.save_blockchain(**self.__node.chain_to_info)
+            cu.save_blockchain(**self.__node.blockchain_info)
 
     def connect_wallet(self):
         """
@@ -102,6 +105,11 @@ class NodeConnection:
             wu.save_keys(self.__wallet, wallet_path)
 
     def check_wallet(self, user):
+        """
+
+        :param user:
+        :return:
+        """
         wallet_path = f'{self.config["dir"]}{user}.txt'
         return wu.check_wallet(wallet_path)
 
@@ -115,7 +123,17 @@ class NodeConnection:
         self.connect_wallet()
         self.connect_node()
 
+    # TODO Fix operation return
     def send_transaction(self, recipient, amount, sender=None, signature=None, nodes_info=None):
+        """
+
+        :param recipient:
+        :param amount:
+        :param sender:
+        :param signature:
+        :param nodes_info:
+        :return:
+        """
         sender = self.user if sender is None else sender
         if self.__node.verify_balance(sender, amount):
 
@@ -126,34 +144,42 @@ class NodeConnection:
                 tx_recipient = recipient
             if self.__node.receive_transaction(tx_recipient, amount, sender, signature):
                 send_nodes_info = self.prepare_nodes(nodes_info)
-                if cs.broadcast_transaction(sender=sender, recipient=tx_recipient,
-                                                amount=amount, signature=signature, nodes_info=send_nodes_info):
-                    return 201
-                else:
-                    return 202
+                cs.broadcast_transaction(sender=sender, recipient=tx_recipient,
+                                         amount=amount, signature=signature, nodes_info=send_nodes_info)
+                return 200
         else:
             return 409
 
-    def send_block(self, block, nodes_info):
-        if self.__node.receive_block(block):
-            send_nodes_info = self.prepare_nodes(nodes_info)
-            if cs.broadcast_chain(block=block, nodes_info=send_nodes_info):
-                return 201
-            else:
-                return 202
-        else:
-            return 409
+    def send_block(self, result, nodes_info=None):
+        """
 
-    def node_mine_block(self, nodes_info=None):
+        :param result:
+        :param nodes_info:
+        :return:
+        """
+
+        send_nodes_info = self.prepare_nodes(nodes_info)
+        incorrect_nodes = cs.broadcast_block(block=result, nodes_info=send_nodes_info)
+        if not incorrect_nodes:
+            return result
+        else:
+            cs.broadcast_chain(blocks=self.__node.blockchain_info, peer_nodes=incorrect_nodes)
+            return result
+
+    def add_block(self, block, nodes_info):
+        result = self.__node.receive_block(block)
+        if result['status'] == 201:
+            self.send_block(result['block'], nodes_info)
+        return result
+
+    def node_mine_block(self):
         mined_block = self.__node.try_mine_block(self.user)
         if mined_block is not None:
-            send_nodes_info = self.prepare_nodes(nodes_info)
-            if cs.broadcast_chain(block=mined_block, nodes_info=send_nodes_info):
-                return 201
-            else:
-                return 202
-        else:
-            return 409
+            return self.send_block(mined_block)
+        return None
+
+    def repair_chain(self, blocks):
+        self.__node.receive_chain(blocks)
 
     def console_format_blockchain(self):
         return self.__node.output_blockchain()
@@ -203,6 +229,11 @@ class NodeConnection:
         return self.__node.compare_chains(block)
 
     def prepare_nodes(self, received_nodes):
+        """
+
+        :param received_nodes:
+        :return:
+        """
         peer_nodes = self.connected_nodes - received_nodes if received_nodes is not None else self.connected_nodes
         sent_nodes = self.connected_nodes | received_nodes \
             if received_nodes is not None else self.connected_nodes | {self.__node.node_id}
@@ -210,5 +241,9 @@ class NodeConnection:
         return prepared_nodes
 
     def disconnect_node(self):
+        """
+
+        :return:
+        """
         if self.__node.verify_chain_is_safe():
-            return cu.save_blockchain(**self.__node.chain_to_info)
+            return cu.save_blockchain(**self.__node.blockchain_info)

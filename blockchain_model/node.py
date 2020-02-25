@@ -9,7 +9,7 @@ class Node:
         self.__blockchain = Blockchain(*chain_info) if chain_info is not None else Blockchain()
 
     @property
-    def chain_to_info(self):
+    def blockchain_info(self):
         """
         Method to transform a object chain_blocks in ordered dictionaries.
         :return: This node's chain blocks and transactions that are still open.
@@ -27,19 +27,26 @@ class Node:
     def new_chain(self, new_user):
         self.__blockchain.start_new_chain(new_user)
 
+    def receive_chain(self, blocks_info):
+        blocks, _ = self.__blockchain.info_to_chain(blocks=blocks_info, txs=None)
+        self.__blockchain.reset_chain(blocks)
+
     def receive_transaction(self, *tx_info):
         result = self.__blockchain.add_tx(tx_info)
         return result
 
-    def receive_block(self, block):
-        if len(self.__blockchain.chain_info) == 0:
-            return None
-        return self.__blockchain.add_block(block)
+    def receive_block(self, block_info):
+        block_to_add, _ = self.__blockchain.info_to_chain(blocks=block_info, txs=None)
+        result = self.__blockchain.add_block(block_to_add)
+        result.update({'block': block_info})
+        return result
 
     def try_mine_block(self, miner_key):
         if len(self.__blockchain.op_txs_info) == 0:
             return None
-        return self.__blockchain.mine_block(miner_key)
+        added_block = self.__blockchain.mine_block(miner_key)
+        block_info, _ = self.__blockchain.chain_to_info(blocks=[added_block])
+        return block_info if block_info else None
 
     def verify_chain_is_safe(self):
         return self.__blockchain.is_safe()
@@ -55,6 +62,7 @@ class Node:
         return sender_balance >= amount
 
     # TODO Return the result as a String instead of printing it directly.
+    # TODO Move to node_terminal_view.py
     def output_blockchain(self):
         """
         Method that prints the chain_blocks in the console.
