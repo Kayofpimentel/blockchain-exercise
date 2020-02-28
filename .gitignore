@@ -1,3 +1,5 @@
+/.idea/
 /resources/
 /__*/
 *__pycache__
+/venv/
